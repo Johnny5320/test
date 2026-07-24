@@ -248,10 +248,7 @@
               <el-table-column type="index" label="#" width="50" align="center"></el-table-column>
               <el-table-column prop="name" label="姓名" width="90" fixed></el-table-column>
               <el-table-column prop="gender" label="性别" width="60" align="center"></el-table-column>
-              <el-table-column label="身份证号" width="190">
-                <template #header>身份证号<el-button text size="small" @click="revealId=!revealId;fetchPersons()">{{ revealId?'🙈':'👁️' }}</el-button></template>
-                <template #default="{row}">{{ row.id_card }}</template>
-              </el-table-column>
+              <el-table-column prop="id_card" label="身份证号" width="190"></el-table-column>
               <el-table-column prop="household_province" label="户籍省" width="70"></el-table-column>
               <el-table-column prop="household_city" label="户籍市" width="70"></el-table-column>
               <el-table-column prop="household_district" label="户籍县" width="90"></el-table-column>
@@ -262,24 +259,26 @@
               <el-table-column prop="prison_place" label="服刑场所" width="110"></el-table-column>
               <el-table-column prop="category" label="类别" width="90"></el-table-column>
               <el-table-column label="重点" width="60" align="center">
-                <template #default="{row}"><span v-if="row.is_key_target" style="color:#ff4d4f;font-weight:bold">★</span><span v-else>-</span></template>
+                <template #default="scope"><span v-if="scope && scope.row && scope && scope.row && scope.row.is_key_target" style="color:#ff4d4f;font-weight:bold">★</span><span v-else>-</span></template>
               </el-table-column>
               <el-table-column label="状态" width="90" align="center">
-                <template #default="{row}"><span :class="'status-tag status-'+row.status">{{ row.status }}</span></template>
+                <template #default="scope"><span v-if="scope && scope.row" :class="scope && scope.row ? 'status-tag status-'+scope.row.status : ''">{{ scope.row.status }}</span></template>
               </el-table-column>
               <el-table-column label="风险" width="60" align="center">
-                <template #default="{row}"><span :class="'risk-'+row.risk_level">{{ row.risk_level }}</span></template>
+                <template #default="scope"><span v-if="scope && scope.row" :class="scope && scope.row ? 'risk-'+scope.row.risk_level : ''">{{ scope.row.risk_level }}</span></template>
               </el-table-column>
               <el-table-column prop="responsible_person" label="责任人" width="90"></el-table-column>
               <el-table-column label="帮教截止" width="110">
-                <template #default="{row}"><span :style="deadlineStyle(row.edu_end_date)">{{ row.edu_end_date || '-' }}</span></template>
+                <template #default="scope"><span v-if="scope && scope.row" :style="scope && scope.row ? deadlineStyle(scope.row.edu_end_date) : {}">{{ scope.row.edu_end_date || '-' }}</span></template>
               </el-table-column>
               <el-table-column label="操作" width="130" fixed="right">
-                <template #default="{row}">
-                  <el-button text type="primary" size="small" @click.stop="editPerson(row)">编辑</el-button>
-                  <el-popconfirm title="确定删除？" @confirm="deletePerson(row)">
-                    <template #reference><el-button text type="danger" size="small">删除</el-button></template>
-                  </el-popconfirm>
+                <template #default="scope">
+                  <template v-if="scope && scope.row">
+                    <el-button text type="primary" size="small" @click.stop="scope && scope.row && editPerson(scope.row)">编辑</el-button>
+                    <el-popconfirm title="确定删除？" @confirm="scope && scope.row && deletePerson(scope.row)">
+                      <template #reference><el-button text type="danger" size="small">删除</el-button></template>
+                    </el-popconfirm>
+                  </template>
                 </template>
               </el-table-column>
             </el-table>
@@ -300,10 +299,12 @@
               <el-table-column prop="visit_date" label="日期" width="110"></el-table-column>
               <el-table-column prop="visitor" label="走访人" width="90"></el-table-column>
               <el-table-column prop="visit_method" label="方式" width="70" align="center"></el-table-column>
-              <el-table-column label="人员" width="90"><template #default="{row}">{{ getPersonName(row.person_id) }}</template></el-table-column>
+              <el-table-column label="人员" width="90">
+                <template #default="scope">{{ scope && scope.row ? scope && scope.row ? getPersonName(scope.row.person_id) : "" : '' }}</template>
+              </el-table-column>
               <el-table-column prop="content" label="内容" show-overflow-tooltip></el-table-column>
               <el-table-column label="异常" width="70" align="center">
-                <template #default="{row}"><span v-if="row.has_abnormal" style="color:#ff4d4f">⚠️</span><span v-else>-</span></template>
+                <template #default="scope"><span v-if="scope && scope.row && scope && scope.row && scope.row.has_abnormal" style="color:#ff4d4f">⚠️</span><span v-else>-</span></template>
               </el-table-column>
             </el-table>
           </template>
@@ -332,8 +333,12 @@
           <!-- ===== 扫描件管理 ===== -->
           <template v-if="currentView === 'files'">
             <el-table :data="allFiles" stripe border style="width:100%" v-loading="filesLoading">
-              <el-table-column prop="uploaded_at" label="上传时间" width="170"><template #default="{row}">{{ row.uploaded_at?.substring(0,16) }}</template></el-table-column>
-              <el-table-column label="人员" width="100"><template #default="{row}">{{ getPersonName(row.person_id) }}</template></el-table-column>
+              <el-table-column label="上传时间" width="170">
+                <template #default="scope">{{ scope && scope.row ? scope && scope.row ? scope.row.uploaded_at?.substring(0,16) : "" : '' }}</template>
+              </el-table-column>
+              <el-table-column label="人员" width="100">
+                <template #default="scope">{{ scope && scope.row ? scope && scope.row ? getPersonName(scope.row.person_id) : "" : '' }}</template>
+              </el-table-column>
               <el-table-column prop="original_name" label="文件名" show-overflow-tooltip></el-table-column>
               <el-table-column label="操作" width="80">
                 <template #default="{row}">
@@ -610,6 +615,8 @@ createApp({
     const allFiles=ref([]);
     const historySearch=ref('');
     const filteredHistory=ref([]);
+    const historyLoading=ref(false);
+    const filesLoading=ref(false);
     const historyGroups=computed(()=>{const g={};for(const l of filteredHistory.value){const pid=l.record_id;if(!g[pid])g[pid]={personId:pid,personName:getPersonName(pid),logs:[]};g[pid].logs.push(l);}return Object.values(g);});
     function filterHistory(){if(!historySearch.value){filteredHistory.value=allEditLogs.value;return;}const q=historySearch.value.toLowerCase();filteredHistory.value=allEditLogs.value.filter(l=>getPersonName(l.record_id).toLowerCase().includes(q));}
 
@@ -768,13 +775,13 @@ createApp({
       allVisits,allEditLogs,allFiles,visitStats,historySearch,filteredHistory,historyGroups,filterHistory,
       showAddDialog,editId,formTab,submitLoading,formRef,personForm,formRules,fieldLabelMap,
       parseIdCard,editPerson,submitPerson,deletePerson,resetForm,handleExportExcel,
-      fetchPersons,calcAge,deadlineStyle,deleteFile,fetchPersonsByExpiring,
+      fetchPersons,calcAge,deadlineStyle,deleteFile,fetchPersonsByExpiring,getPersonName,
       prisonList,showAddPrisonDialog,newPrisonName,addPrison,fetchPrisonList,
       quarterlyReport,
-      historyLoading:ref(false),filesLoading:ref(false),
+      historyLoading,filesLoading,
     };
   }
-}).mount('#app');
+}).use(ElementPlus).mount('#app');
 </script>
 </body>
 </html>

@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.database import create_db_and_tables, get_session
 from app.core.security import hash_password, verify_password
 from app.models import User, Person, Visit, EditLog, File
-from app.api import auth, persons, visits, files, ocr, reminders
+from app.api import auth, persons, visits, files, reminders
 from sqlmodel import Session, select
 
 
@@ -81,7 +81,6 @@ app.include_router(auth.router)
 app.include_router(persons.router)
 app.include_router(visits.router)
 app.include_router(files.router)
-app.include_router(ocr.router)
 app.include_router(reminders.router)
 
 
