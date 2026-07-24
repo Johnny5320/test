@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>安置帮教智能台账系统</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus@2.9.1/dist/locale/zh-cn.min.js"></script>
+  <style>
+    /* ========== 基础重置 ========== */
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Microsoft YaHei',sans-serif;background:#f0f2f5}
+
+    /* ========== 登录页 ========== */
+    .login-page{height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}
+    .login-card{width:420px;padding:40px 36px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+    .login-title{text-align:center;font-size:22px;font-weight:bold;color:#333;margin-bottom:8px}
+    .login-subtitle{text-align:center;font-size:13px;color:#999;margin-bottom:28px}
+    .login-remember{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+
+    /* ========== 主布局 ========== */
+    .app-layout{height:100vh;display:flex;flex-direction:column}
+    .app-header{height:56px;background:#fff;border-bottom:1px solid #e8e8e8;display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0}
+    .app-header h2{font-size:18px;color:#333}
+    .app-body{flex:1;display:flex;overflow:hidden}
+    .main-content{flex:1;padding:20px;overflow-y:auto}
+
+    /* ========== 统计卡片 ========== */
+    .stats-bar{display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+    .stat-card{flex:1;min-width:140px;padding:16px;background:#fff;border-radius:8px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:transform .2s}
+    .stat-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.12)}
+    .stat-card .num{font-size:28px;font-weight:bold}
+    .stat-card .label{font-size:13px;color:#999;margin-top:4px}
+
+    /* ========== 风险等级分布条形图 ========== */
+    .risk-chart{background:#fff;border-radius:8px;padding:16px 20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+    .risk-chart h4{font-size:14px;color:#333;margin-bottom:12px}
+    .risk-bar-row{display:flex;align-items:center;margin-bottom:8px}
+    .risk-bar-label{width:50px;font-size:13px;color:#666;flex-shrink:0}
+    .risk-bar-track{flex:1;height:22px;background:#f0f0f0;border-radius:11px;overflow:hidden;position:relative}
+    .risk-bar-fill{height:100%;border-radius:11px;transition:width .6s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:11px;color:#fff;font-weight:bold;min-width:30px}
+    .risk-bar-fill.risk-high{background:linear-gradient(90deg,#ff7875,#ff4d4f)}
+    .risk-bar-fill.risk-mid{background:linear-gradient(90deg,#ffc53d,#faad14)}
+    .risk-bar-fill.risk-low{background:linear-gradient(90deg,#95de64,#52c41a)}
+
+    /* ========== 搜索栏 ========== */
+    .search-bar{margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+
+    /* ========== 状态标签 ========== */
+    .status-tag{padding:2px 8px;border-radius:4px;font-size:12px}
+    .status-在帮{background:#e6f7e6;color:#52c41a}
+    .status-已解除{background:#e6f0ff;color:#1890ff}
+    .status-脱管{background:#fff7e6;color:#faad14}
+    .status-重点关注{background:#fff1f0;color:#ff4d4f}
+
+    /* ========== 风险等级文字 ========== */
+    .risk-高{color:#ff4d4f;font-weight:bold}
+    .risk-中{color:#faad14}
+    .risk-低{color:#52c41a}
+
+    /* ========== 抽屉详情 ========== */
+    .drawer-content{padding:0 16px}
+    .info-group{margin-bottom:20px}
+    .info-group h4{font-size:15px;color:#333;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #409eff}
+    .info-row{display:flex;margin-bottom:8px;font-size:14px}
+    .info-label{width:100px;color:#999;flex-shrink:0}
+    .info-value{color:#333;flex:1}
+
+    /* ========== 步骤条 ========== */
+    .step-bar{margin-bottom:20px}
+
+    /* ========== 走访季度标签 ========== */
+    .quarter-tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;margin-left:8px;font-weight:bold}
+    .quarter-tag.q1{background:#e6f0ff;color:#1890ff}
+    .quarter-tag.q2{background:#e6f7e6;color:#52c41a}
+    .quarter-tag.q3{background:#fff7e6;color:#faad14}
+    .quarter-tag.q4{background:#fff1f0;color:#ff4d4f}
+
+    /* ========== 走访统计卡片 ========== */
+    .visit-stats{display:flex;gap:12px;margin-bottom:16px}
+    .visit-stat-card{flex:1;padding:12px;background:#f8f9fa;border-radius:6px;text-align:center}
+    .visit-stat-card .v-num{font-size:22px;font-weight:bold}
+    .visit-stat-card .v-label{font-size:12px;color:#999;margin-top:2px}
+
+    /* ========== 修改历史时间线 ========== */
+    .history-item{padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;display:flex;align-items:flex-start;gap:8px}
+    .history-item:last-child{border-bottom:none}
+    .history-time{color:#999;white-space:nowrap;min-width:140px}
+    .history-editor{color:#409eff;white-space:nowrap;font-weight:500}
+    .history-detail{color:#333}
+    .history-detail .old-val{color:#999;text-decoration:line-through}
+    .history-detail .new-val{color:#52c41a;font-weight:500}
+
+    /* ========== 骨架屏 ========== */
+    .skeleton-row{display:flex;gap:16px;padding:16px 0}
+    .skeleton-cell{height:16px;background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* ========== 空状态美化 ========== */
+    .empty-state{text-align:center;padding:40px 20px;color:#c0c4cc}
+    .empty-state .empty-icon{font-size:48px;margin-bottom:12px}
+    .empty-state .empty-text{font-size:14px;color:#999}
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ==================== 登录页 ==================== -->
+  <div v-if="!token" class="login-page">
+    <div class="login-card">
+      <div class="login-title">🏛️ 安置帮教智能台账系统</div>
+      <div class="login-subtitle">社区矫正 · 帮教管理 · 智能台账</div>
+      <el-form :model="loginForm" :rules="loginRules" ref="loginRef">
+        <el-form-item prop="username">
+          <el-input v-model="loginForm.username" placeholder="用户名" prefix-icon="User" size="large"></el-input>
+        </el-form-item>
+        <el-form-item prop="password">
+          <el-input v-model="loginForm.password" placeholder="密码" type="password" prefix-icon="Lock" size="large" @keyup.enter="handleLogin" show-password></el-input>
+        </el-form-item>
+        <div class="login-remember">
+          <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+        </div>
+        <el-button type="primary" size="large" style="width:100%" @click="handleLogin" :loading="loginLoading">登 录</el-button>
+      </el-form>
+    </div>
+  </div>
+
+  <!-- ==================== 主界面 ==================== -->
+  <div v-else class="app-layout">
+    <!-- 顶部导航 -->
+    <div class="app-header">
+      <h2>🏛️ 安置帮教智能台账系统</h2>
+      <div>
+        <span style="margin-right:16px;color:#666">👤 {{ currentUser.real_name }}（{{ roleMap[currentUser.role] }}）</span>
+        <el-button text @click="handleLogout">退出</el-button>
+      </div>
+    </div>
+
+    <div class="app-body">
+      <div class="main-content">
+
+        <!-- ===== 全局统计卡片 ===== -->
+        <div class="stats-bar">
+          <div class="stat-card">
+            <div class="num" style="color:#409eff">{{ statsData.total || 0 }}</div>
+            <div class="label">总人数</div>
+          </div>
+          <div class="stat-card">
+            <div class="num" style="color:#52c41a">{{ statsData.在帮 || 0 }}</div>
+            <div class="label">在帮</div>
+          </div>
+          <div class="stat-card">
+            <div class="num" style="color:#1890ff">{{ statsData.已解除 || 0 }}</div>
+            <div class="label">已解除</div>
+          </div>
+          <div class="stat-card">
+            <div class="num" style="color:#faad14">{{ statsData.脱管 || 0 }}</div>
+            <div class="label">脱管</div>
+          </div>
+          <div class="stat-card">
+            <div class="num" style="color:#ff4d4f">{{ statsData.重点关注 || 0 }}</div>
+            <div class="label">重点关注</div>
+          </div>
+        </div>
+
+        <!-- ===== 风险等级分布图 ===== -->
+        <div class="risk-chart">
+          <h4>📊 风险等级分布</h4>
+          <div class="risk-bar-row">
+            <span class="risk-bar-label">高</span>
+            <div class="risk-bar-track">
+              <div class="risk-bar-fill risk-high" :style="{width: riskBarWidth('高')}">
+                {{ statsData.risk_high || 0 }}
+              </div>
+            </div>
+          </div>
+          <div class="risk-bar-row">
+            <span class="risk-bar-label">中</span>
+            <div class="risk-bar-track">
+              <div class="risk-bar-fill risk-mid" :style="{width: riskBarWidth('中')}">
+                {{ statsData.risk_mid || 0 }}
+              </div>
+            </div>
+          </div>
+          <div class="risk-bar-row">
+            <span class="risk-bar-label">低</span>
+            <div class="risk-bar-track">
+              <div class="risk-bar-fill risk-low" :style="{width: riskBarWidth('低')}">
+                {{ statsData.risk_low || 0 }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 搜索与操作栏 ===== -->
+        <div class="search-bar">
+          <el-input v-model="searchText" placeholder="搜索姓名/身份证/电话" clearable style="width:280px" @keyup.enter="fetchPersons">
+            <template #append><el-button @click="fetchPersons">搜索</el-button></template>
+          </el-input>
+          <el-select v-model="filterStatus" placeholder="状态" clearable style="width:120px" @change="fetchPersons">
+            <el-option label="在帮" value="在帮"></el-option>
+            <el-option label="已解除" value="已解除"></el-option>
+            <el-option label="脱管" value="脱管"></el-option>
+            <el-option label="重点关注" value="重点关注"></el-option>
+          </el-select>
+          <el-select v-model="filterRisk" placeholder="风险等级" clearable style="width:120px" @change="fetchPersons">
+            <el-option label="高" value="高"></el-option>
+            <el-option label="中" value="中"></el-option>
+            <el-option label="低" value="低"></el-option>
+          </el-select>
+          <el-button type="primary" @click="showAddDialog=true;resetForm()">+ 新增人员</el-button>
+          <el-button type="success" @click="showOcrDialog=true;ocrResult=null;ocrFile=null">📷 OCR扫描入库</el-button>
+          <el-button type="warning" @click="handleExportExcel" :loading="exportLoading">📥 导出Excel</el-button>
+        </div>
+
+        <!-- ===== 人员列表表格 ===== -->
+        <!-- 骨架屏加载态 -->
+        <template v-if="tableLoading && !persons.items.length">
+          <div style="background:#fff;border-radius:8px;padding:16px">
+            <div v-for="i in 8" :key="i" class="skeleton-row">
+              <div class="skeleton-cell" style="width:70px"></div>
+              <div class="skeleton-cell" style="width:160px"></div>
+              <div class="skeleton-cell" style="width:40px"></div>
+              <div class="skeleton-cell" style="width:40px"></div>
+              <div class="skeleton-cell" style="width:110px"></div>
+              <div class="skeleton-cell" style="flex:1"></div>
+            </div>
+          </div>
+        </template>
+
+        <el-table v-else :data="persons.items" stripe border style="width:100%" @row-click="openDrawer" v-loading="tableLoading" highlight-current-row empty-text=" ">
+          <el-table-column prop="name" label="姓名" width="90" fixed></el-table-column>
+          <el-table-column prop="id_card" label="身份证号" width="180"></el-table-column>
+          <el-table-column prop="gender" label="性别" width="60" align="center"></el-table-column>
+          <el-table-column label="年龄" width="60" align="center">
+            <template #default="{row}">{{ calcAge(row.birth_date) }}</template>
+          </el-table-column>
+          <el-table-column prop="phone" label="电话" width="130"></el-table-column>
+          <el-table-column prop="original_crime" label="原罪名" width="120"></el-table-column>
+          <el-table-column label="状态" width="100" align="center">
+            <template #default="{row}"><span :class="'status-tag status-'+row.status">{{ row.status }}</span></template>
+          </el-table-column>
+          <el-table-column label="风险" width="70" align="center">
+            <template #default="{row}"><span :class="'risk-'+row.risk_level">{{ row.risk_level }}</span></template>
+          </el-table-column>
+          <el-table-column prop="responsible_person" label="责任人" width="90"></el-table-column>
+          <el-table-column label="帮教截止" width="110">
+            <template #default="{row}"><span :style="deadlineStyle(row.edu_end_date)">{{ row.edu_end_date || '-' }}</span></template>
+          </el-table-column>
+          <el-table-column label="操作" width="140" fixed="right">
+            <template #default="{row}">
+              <el-button text type="primary" size="small" @click.stop="editPerson(row)">编辑</el-button>
+              <el-popconfirm title="确定删除该人员？删除后不可恢复。" confirm-button-text="确定删除" cancel-button-text="取消" confirm-button-type="danger" @confirm="deletePerson(row)" width="220">
+                <template #reference>
+                  <el-button text type="danger" size="small" @click.stop>删除</el-button>
+                </template>
+              </el-popconfirm>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <!-- 空状态 -->
+        <div v-if="!tableLoading && !persons.items.length" class="empty-state">
+          <div class="empty-icon">📋</div>
+          <div class="empty-text">暂无人员数据，点击"新增人员"开始添加</div>
+        </div>
+
+        <!-- 分页 -->
+        <div style="margin-top:16px;text-align:right">
+          <el-pagination v-model:current-page="currentPage" :page-size="20" :total="persons.total" layout="total, prev, pager, next" @current-change="fetchPersons"></el-pagination>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 详情侧边栏 ==================== -->
+  <el-drawer v-model="drawerVisible" :title="drawerPerson?.name + ' 的详细信息'" size="700px" direction="rtl">
+    <div class="drawer-content" v-if="drawerPerson">
+      <el-tabs v-model="drawerTab" @tab-change="onDrawerTabChange">
+
+        <!-- Tab 1: 基本信息 -->
+        <el-tab-pane label="基本信息" name="info">
+          <div class="info-group">
+            <h4>👤 身份信息</h4>
+            <div class="info-row"><span class="info-label">姓名</span><span class="info-value">{{ drawerPerson.name }}</span></div>
+            <div class="info-row"><span class="info-label">身份证号</span><span class="info-value">{{ drawerPerson.id_card }}</span></div>
+            <div class="info-row"><span class="info-label">性别</span><span class="info-value">{{ drawerPerson.gender }}</span></div>
+            <div class="info-row"><span class="info-label">出生日期</span><span class="info-value">{{ drawerPerson.birth_date }}</span></div>
+            <div class="info-row"><span class="info-label">户籍地址</span><span class="info-value">{{ drawerPerson.household_addr || '-' }}</span></div>
+            <div class="info-row"><span class="info-label">现住址</span><span class="info-value">{{ drawerPerson.current_addr || '-' }}</span></div>
+            <div class="info-row"><span class="info-label">联系电话</span><span class="info-value">{{ drawerPerson.phone || '-' }}</span></div>
+          </div>
+          <div class="info-group">
+            <h4>📋 帮教信息</h4>
+            <div class="info-row"><span class="info-label">原罪名</span><span class="info-value">{{ drawerPerson.original_crime || '-' }}</span></div>
+            <div class="info-row"><span class="info-label">原判刑期</span><span class="info-value">{{ drawerPerson.original_sentence || '-' }}</span></div>
+            <div class="info-row"><span class="info-label">释放日期</span><span class="info-value">{{ drawerPerson.release_date || '-' }}</span></div>
+            <div class="info-row"><span class="info-label">帮教起始</span><span class="info-value">{{ drawerPerson.edu_start_date || '-' }}</span></div>
+            <div class="info-row"><span class="info-label">帮教截止</span><span class="info-value" :style="deadlineStyle(drawerPerson.edu_end_date)">{{ drawerPerson.edu_end_date || '-' }}</span></div>
+            <div class="info-row"><span class="info-label">状态</span><span class="info-value"><span :class="'status-tag status-'+drawerPerson.status">{{ drawerPerson.status }}</span></span></div>
+            <div class="info-row"><span class="info-label">风险等级</span><span class="info-value"><span :class="'risk-'+drawerPerson.risk_level">{{ drawerPerson.risk_level }}</span></span></div>
+            <div class="info-row"><span class="info-label">责任人</span><span class="info-value">{{ drawerPerson.responsible_person || '-' }}</span></div>
+          </div>
+          <div class="info-group">
+            <h4>🏠 家庭信息</h4>
+            <div class="info-row"><span class="info-label">婚姻状况</span><span class="info-value">{{ drawerPerson.marital_status || '-' }}</span></div>
+            <div class="info-row"><span class="info-label">文化程度</span><span class="info-value">{{ drawerPerson.education_level || '-' }}</span></div>
+            <div class="info-row"><span class="info-label">就业情况</span><span class="info-value">{{ drawerPerson.employment || '-' }}</span></div>
+            <div class="info-row"><span class="info-label">身体状况</span><span class="info-value">{{ drawerPerson.health_status || '-' }}</span></div>
+            <div class="info-row"><span class="info-label">经济状况</span><span class="info-value">{{ drawerPerson.economic_status || '-' }}</span></div>
+            <div class="info-row"><span class="info-label">家属</span><span class="info-value">{{ drawerPerson.family_name || '-' }} {{ drawerPerson.family_phone || '' }}</span></div>
+          </div>
+        </el-tab-pane>
+
+        <!-- Tab 2: 走访记录 -->
+        <el-tab-pane label="走访记录" name="visits">
+          <!-- 走访统计卡片 -->
+          <div class="visit-stats">
+            <div class="visit-stat-card">
+              <div class="v-num" style="color:#409eff">{{ visitStatsCurrentQuarter }}</div>
+              <div class="v-label">本季度走访</div>
+            </div>
+            <div class="visit-stat-card">
+              <div class="v-num" style="color:#ff4d4f">{{ visitStatsAbnormal }}</div>
+              <div class="v-label">异常记录</div>
+            </div>
+            <div class="visit-stat-card">
+              <div class="v-num" style="color:#52c41a">{{ visitList.length }}</div>
+              <div class="v-label">总走访数</div>
+            </div>
+          </div>
+
+          <!-- 季度筛选 -->
+          <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
+            <el-button type="primary" size="small" @click="showVisitDialog=true;resetVisitForm()">+ 新增走访</el-button>
+            <el-select v-model="visitQuarterFilter" placeholder="筛选季度" clearable size="small" style="width:150px" @change="filterVisitsByQuarter">
+              <el-option label="全部" value=""></el-option>
+              <el-option v-for="q in availableQuarters" :key="q" :label="q" :value="q"></el-option>
+            </el-select>
+          </div>
+
+          <!-- 走访时间线 -->
+          <el-timeline>
+            <el-timeline-item v-for="v in filteredVisitList" :key="v.id" :timestamp="v.visit_date+' '+v.visitor" placement="top" :type="v.has_abnormal?'danger':'primary'">
+              <el-card shadow="never">
+                <div style="display:flex;align-items:center">
+                  <b>{{ v.visit_method }}</b>
+                  <span class="quarter-tag" :class="getQuarterClass(v.visit_date)">{{ getQuarterLabel(v.visit_date) }}</span>
+                  <span v-if="v.visit_location" style="margin-left:8px;color:#999">@ {{ v.visit_location }}</span>
+                </div>
+                <div v-if="v.content" style="margin:8px 0;color:#333">{{ v.content }}</div>
+                <div v-if="v.has_abnormal" style="color:#ff4d4f">⚠️ 异常：{{ v.abnormal_detail }}</div>
+                <div style="margin-top:8px">
+                  <el-button text type="primary" size="small" @click="editVisit(v)">编辑</el-button>
+                  <el-popconfirm title="确定删除这条走访记录？" confirm-button-text="确定" cancel-button-text="取消" @confirm="deleteVisit(v)" width="200">
+                    <template #reference>
+                      <el-button text type="danger" size="small">删除</el-button>
+                    </template>
+                  </el-popconfirm>
+                </div>
+              </el-card>
+            </el-timeline-item>
+          </el-timeline>
+
+          <!-- 走访空状态 -->
+          <div v-if="!filteredVisitList.length" class="empty-state">
+            <div class="empty-icon">📝</div>
+            <div class="empty-text">{{ visitQuarterFilter ? '该季度暂无走访记录' : '暂无走访记录，点击"+ 新增走访"添加' }}</div>
+          </div>
+        </el-tab-pane>
+
+        <!-- Tab 3: 修改历史 -->
+        <el-tab-pane label="修改历史" name="history">
+          <!-- 加载态 -->
+          <div v-if="historyLoading" style="padding:20px">
+            <div v-for="i in 4" :key="i" class="skeleton-row">
+              <div class="skeleton-cell" style="width:140px"></div>
+              <div class="skeleton-cell" style="width:60px"></div>
+              <div class="skeleton-cell" style="flex:1"></div>
+            </div>
+          </div>
+          <!-- 历史记录列表 -->
+          <div v-else-if="editLogs.length">
+            <div v-for="log in editLogs" :key="log.id" class="history-item">
+              <span class="history-time">{{ formatHistoryTime(log.edited_at) }}</span>
+              <span class="history-editor">{{ log.editor || '系统' }}</span>
+              <span class="history-detail">
+                将 <b>{{ fieldLabelMap[log.field_name] || log.field_name }}</b>
+                从 "<span class="old-val">{{ log.old_value || '(空)' }}</span>"
+                改为 "<span class="new-val">{{ log.new_value || '(空)' }}</span>"
+              </span>
+            </div>
+          </div>
+          <!-- 空状态 -->
+          <div v-else class="empty-state">
+            <div class="empty-icon">📜</div>
+            <div class="empty-text">暂无修改记录</div>
+          </div>
+        </el-tab-pane>
+
+        <!-- Tab 4: 文件附件 -->
+        <el-tab-pane label="文件附件" name="files">
+          <div style="margin-bottom:12px">
+            <el-upload
+              :action="'/api/files/upload?person_id=' + drawerPerson?.id + '&file_type=扫描件'"
+              :headers="{ Authorization: 'Bearer ' + token }"
+              :show-file-list="false"
+              :on-success="onFileUploadSuccess"
+              accept=".jpg,.jpeg,.png,.pdf,.bmp,.tiff"
+            >
+              <el-button type="primary" size="small">📎 上传文件</el-button>
+            </el-upload>
+          </div>
+          <div v-if="fileList.length">
+            <div v-for="f in fileList" :key="f.id" class="history-item" style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <span style="font-size:14px">{{ f.file_type }}: {{ f.original_name || '未命名' }}</span>
+                <br><span style="font-size:12px;color:#999">{{ f.uploaded_at?.substring(0,16) }}</span>
+              </div>
+              <el-popconfirm title="确定删除此文件？" @confirm="deleteFile(f.id)">
+                <template #reference><el-button text type="danger" size="small">删除</el-button></template>
+              </el-popconfirm>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <div class="empty-icon">📎</div>
+            <div class="empty-text">暂无附件，点击上方按钮上传</div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+    </div>
+  </el-drawer>
+
+  <!-- ==================== 新增走访弹窗 ==================== -->
+  <el-dialog v-model="showVisitDialog" :title="editVisitId?'编辑走访记录':'新增走访记录'" width="600px">
+    <el-form :model="visitForm" label-width="90px">
+      <el-form-item label="走访日期">
+        <el-date-picker v-model="visitForm.visit_date" type="date" value-format="YYYY-MM-DD" style="width:100%"></el-date-picker>
+      </el-form-item>
+      <el-form-item label="走访人"><el-input v-model="visitForm.visitor"></el-input></el-form-item>
+      <el-form-item label="走访方式">
+        <el-radio-group v-model="visitForm.visit_method">
+          <el-radio value="上门">上门</el-radio>
+          <el-radio value="电话">电话</el-radio>
+          <el-radio value="视频">视频</el-radio>
+        </el-radio-group>
+      </el-form-item>
+      <el-form-item label="地点"><el-input v-model="visitForm.visit_location"></el-input></el-form-item>
+      <el-form-item label="在场人员"><el-input v-model="visitForm.companions"></el-input></el-form-item>
+      <el-form-item label="走访内容"><el-input v-model="visitForm.content" type="textarea" :rows="3"></el-input></el-form-item>
+      <el-form-item label="有无异常"><el-switch v-model="visitForm.has_abnormal"></el-switch></el-form-item>
+      <el-form-item v-if="visitForm.has_abnormal" label="异常详情">
+        <el-input v-model="visitForm.abnormal_detail" type="textarea" :rows="2"></el-input>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="showVisitDialog=false">取消</el-button>
+      <el-button type="primary" @click="submitVisit" :loading="visitLoading">保存</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- ==================== OCR扫描弹窗 ==================== -->
+  <el-dialog v-model="showOcrDialog" title="OCR扫描入库" width="700px" :close-on-click-modal="false">
+    <div v-if="!ocrResult">
+      <el-upload drag :auto-upload="false" :on-change="handleOcrFile" :limit="1" accept=".jpg,.jpeg,.png,.pdf,.bmp,.tiff">
+        <div style="font-size:40px;color:#c0c4cc">📷</div>
+        <div>将扫描件拖到此处，或<em>点击上传</em></div>
+        <template #tip><div style="color:#999;font-size:12px">支持 JPG/PNG/PDF，自动识别身份证号、姓名等字段</div></template>
+      </el-upload>
+      <el-button type="primary" style="margin-top:16px;width:100%" @click="doOcrScan" :loading="ocrLoading" :disabled="!ocrFile">开始识别</el-button>
+    </div>
+    <div v-else>
+      <el-alert :title="ocrResult.success?'识别成功':'识别失败'" :type="ocrResult.success?'success':'error'" show-icon style="margin-bottom:16px"></el-alert>
+      <div v-if="ocrResult.success">
+        <h4 style="margin-bottom:12px">提取的字段（请核对后确认入库）：</h4>
+        <el-form label-width="90px">
+          <el-form-item label="姓名"><el-input v-model="ocrFields.name"></el-input></el-form-item>
+          <el-form-item label="身份证号"><el-input v-model="ocrFields.id_card"></el-input></el-form-item>
+          <el-form-item label="性别">
+            <el-select v-model="ocrFields.gender">
+              <el-option label="男" value="男"></el-option>
+              <el-option label="女" value="女"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="出生日期"><el-input v-model="ocrFields.birth_date"></el-input></el-form-item>
+          <el-form-item label="电话"><el-input v-model="ocrFields.phone"></el-input></el-form-item>
+          <el-form-item label="原罪名"><el-input v-model="ocrFields.original_crime"></el-input></el-form-item>
+          <el-form-item label="原判刑期"><el-input v-model="ocrFields.original_sentence"></el-input></el-form-item>
+        </el-form>
+        <div style="margin-top:16px">
+          <h4 style="margin-bottom:8px">OCR原始识别结果：</h4>
+          <div style="max-height:150px;overflow-y:auto;background:#f5f5f5;padding:12px;border-radius:4px;font-size:12px;line-height:1.8">
+            <div v-for="(t,i) in ocrResult.raw_text" :key="i">{{ t }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <template #footer>
+      <el-button @click="showOcrDialog=false;ocrResult=null;ocrFile=null">关闭</el-button>
+      <el-button v-if="ocrResult&&ocrResult.success" type="primary" @click="ocrConfirmInsert">确认入库</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- ==================== 新增/编辑人员弹窗 ==================== -->
+  <el-dialog v-model="showAddDialog" :title="editId?'编辑人员':'新增人员'" width="700px" :close-on-click-modal="false">
+    <el-steps :active="formStep" finish-status="success" align-center class="step-bar">
+      <el-step title="基本信息"></el-step>
+      <el-step title="帮教信息"></el-step>
+      <el-step title="家庭信息"></el-step>
+    </el-steps>
+    <el-form :model="personForm" :rules="formRules" ref="formRef" label-width="100px">
+      <!-- Step 0: 基本信息 -->
+      <div v-show="formStep===0">
+        <el-form-item label="姓名" prop="name"><el-input v-model="personForm.name"></el-input></el-form-item>
+        <el-form-item label="身份证号" prop="id_card"><el-input v-model="personForm.id_card" maxlength="18" @blur="parseIdCard"></el-input></el-form-item>
+        <el-form-item label="性别">
+          <el-select v-model="personForm.gender" placeholder="自动识别">
+            <el-option label="男" value="男"></el-option>
+            <el-option label="女" value="女"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="出生日期">
+          <el-date-picker v-model="personForm.birth_date" type="date" value-format="YYYY-MM-DD" style="width:100%"></el-date-picker>
+        </el-form-item>
+        <el-form-item label="户籍地址"><el-input v-model="personForm.household_addr"></el-input></el-form-item>
+        <el-form-item label="现住址"><el-input v-model="personForm.current_addr"></el-input></el-form-item>
+        <el-form-item label="联系电话"><el-input v-model="personForm.phone"></el-input></el-form-item>
+      </div>
+      <!-- Step 1: 帮教信息 -->
+      <div v-show="formStep===1">
+        <el-form-item label="原罪名"><el-input v-model="personForm.original_crime"></el-input></el-form-item>
+        <el-form-item label="原判刑期"><el-input v-model="personForm.original_sentence"></el-input></el-form-item>
+        <el-form-item label="释放日期">
+          <el-date-picker v-model="personForm.release_date" type="date" value-format="YYYY-MM-DD" style="width:100%"></el-date-picker>
+        </el-form-item>
+        <el-form-item label="帮教起始">
+          <el-date-picker v-model="personForm.edu_start_date" type="date" value-format="YYYY-MM-DD" style="width:100%"></el-date-picker>
+        </el-form-item>
+        <el-form-item label="帮教截止">
+          <el-date-picker v-model="personForm.edu_end_date" type="date" value-format="YYYY-MM-DD" style="width:100%"></el-date-picker>
+        </el-form-item>
+        <el-form-item label="责任人"><el-input v-model="personForm.responsible_person"></el-input></el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="personForm.status">
+            <el-option label="在帮" value="在帮"></el-option>
+            <el-option label="已解除" value="已解除"></el-option>
+            <el-option label="脱管" value="脱管"></el-option>
+            <el-option label="重点关注" value="重点关注"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="风险等级">
+          <el-select v-model="personForm.risk_level">
+            <el-option label="高" value="高"></el-option>
+            <el-option label="中" value="中"></el-option>
+            <el-option label="低" value="低"></el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+      <!-- Step 2: 家庭信息 -->
+      <div v-show="formStep===2">
+        <el-form-item label="婚姻状况">
+          <el-select v-model="personForm.marital_status" clearable>
+            <el-option label="未婚" value="未婚"></el-option>
+            <el-option label="已婚" value="已婚"></el-option>
+            <el-option label="离异" value="离异"></el-option>
+            <el-option label="丧偶" value="丧偶"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="文化程度">
+          <el-select v-model="personForm.education_level" clearable>
+            <el-option label="文盲" value="文盲"></el-option>
+            <el-option label="小学" value="小学"></el-option>
+            <el-option label="初中" value="初中"></el-option>
+            <el-option label="高中" value="高中"></el-option>
+            <el-option label="大专及以上" value="大专及以上"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="就业情况"><el-input v-model="personForm.employment"></el-input></el-form-item>
+        <el-form-item label="身体状况"><el-input v-model="personForm.health_status"></el-input></el-form-item>
+        <el-form-item label="经济状况">
+          <el-select v-model="personForm.economic_status" clearable>
+            <el-option label="好" value="好"></el-option>
+            <el-option label="一般" value="一般"></el-option>
+            <el-option label="困难" value="困难"></el-option>
+            <el-option label="特别困难" value="特别困难"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="家属姓名"><el-input v-model="personForm.family_name"></el-input></el-form-item>
+        <el-form-item label="家属电话"><el-input v-model="personForm.family_phone"></el-input></el-form-item>
+        <el-form-item label="备注"><el-input v-model="personForm.notes" type="textarea" :rows="3"></el-input></el-form-item>
+      </div>
+    </el-form>
+    <template #footer>
+      <el-button v-if="formStep>0" @click="formStep--">上一步</el-button>
+      <el-button v-if="formStep<2" type="primary" @click="formStep++">下一步</el-button>
+      <el-button v-if="formStep===2" type="primary" @click="submitPerson" :loading="submitLoading">{{ editId?'保存修改':'确认入库' }}</el-button>
+    </template>
+  </el-dialog>
+</div>
+
+<script>
+/**
+ * 安置帮教智能台账系统 - 前端应用
+ * 技术栈: Vue 3 + Element Plus (CDN)
+ * 功能: 人员管理、走访记录、OCR识别、统计分析、Excel导出
+ */
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+const { ElMessage, ElMessageBox } = ElementPlus;
+const API = ''; // 同源部署，API 基础路径为空
+
+createApp({
+  setup() {
+    // ==================== 认证相关 ====================
+    const token = ref(localStorage.getItem('token') || '');
+    const refreshToken = ref(localStorage.getItem('refresh_token') || '');
+    const currentUser = ref({});
+    const loginLoading = ref(false);
+    const rememberMe = ref(localStorage.getItem('rememberMe') === 'true');
+    const loginForm = reactive({ username: localStorage.getItem('rememberedUser') || '', password: '' });
+    const loginRules = {
+      username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+      password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+    };
+    const roleMap = { director: '所长', deputy: '副所长', clerk: '科员' };
+
+    // ==================== 全局统计 ====================
+    const statsData = reactive({
+      total: 0,
+      '在帮': 0, '已解除': 0, '脱管': 0, '重点关注': 0,
+      risk_high: 0, risk_mid: 0, risk_low: 0
+    });
+
+    // ==================== 人员列表 ====================
+    const persons = ref({ items: [], total: 0, page: 1, page_size: 20, pages: 0 });
+    const searchText = ref('');
+    const filterStatus = ref('');
+    const filterRisk = ref('');
+    const currentPage = ref(1);
+    const tableLoading = ref(false);
+    const exportLoading = ref(false);
+
+    // ==================== 详情抽屉 ====================
+    const drawerVisible = ref(false);
+    const drawerPerson = ref(null);
+    const drawerTab = ref('info');
+    const visitList = ref([]);
+    const editLogs = ref([]);
+    const historyLoading = ref(false);
+    const fileList = ref([]);
+    const visitQuarterFilter = ref('');
+
+    // ==================== 新增/编辑表单 ====================
+    const showAddDialog = ref(false);
+    const editId = ref(null);
+    const formStep = ref(0);
+    const submitLoading = ref(false);
+    const formRef = ref(null);
+    const personForm = reactive({
+      name: '', id_card: '', gender: '', birth_date: '',
+      household_addr: '', current_addr: '', phone: '',
+      original_crime: '', original_sentence: '', release_date: '',
+      edu_start_date: '', edu_end_date: '', responsible_person: '',
+      status: '在帮', risk_level: '低',
+      marital_status: '', education_level: '', employment: '',
+      health_status: '', economic_status: '', family_name: '', family_phone: '', notes: ''
+    });
+    const formRules = {
+      name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+      id_card: [{ required: true, message: '请输入身份证号', trigger: 'blur' }]
+    };
+
+    // ==================== 走访相关 ====================
+    const showVisitDialog = ref(false);
+    const editVisitId = ref(null);
+    const visitLoading = ref(false);
+    const visitForm = reactive({
+      visit_date: '', visitor: '', visit_method: '上门',
+      visit_location: '', companions: '', content: '',
+      has_abnormal: false, abnormal_detail: ''
+    });
+
+    // ==================== OCR相关 ====================
+    const showOcrDialog = ref(false);
+    const ocrFile = ref(null);
+    const ocrLoading = ref(false);
+    const ocrResult = ref(null);
+    const ocrFields = reactive({
+      name: '', id_card: '', gender: '', birth_date: '',
+      phone: '', original_crime: '', original_sentence: ''
+    });
+
+    // ==================== 字段名中文映射 ====================
+    const fieldLabelMap = {
+      name: '姓名', id_card: '身份证号', gender: '性别', birth_date: '出生日期',
+      household_addr: '户籍地址', current_addr: '现住址', phone: '联系电话',
+      original_crime: '原罪名', original_sentence: '原判刑期', release_date: '释放日期',
+      edu_start_date: '帮教起始', edu_end_date: '帮教截止', responsible_person: '责任人',
+      status: '状态', risk_level: '风险等级', marital_status: '婚姻状况',
+      education_level: '文化程度', employment: '就业情况', health_status: '身体状况',
+      economic_status: '经济状况', family_name: '家属姓名', family_phone: '家属电话', notes: '备注'
+    };
+
+    // ==================== 通用 API 请求 ====================
+    async function api(path, options = {}) {
+      const defaultHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token.value}` };
+      const resp = await fetch(API + path, {
+        ...options,
+        headers: { ...defaultHeaders, ...options.headers }
+      });
+      if (resp.status === 401) {
+        handleLogout();
+        ElMessage.error('登录已过期，请重新登录');
+        throw new Error('未登录');
+      }
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.detail || `请求失败 (${resp.status})`);
+      }
+      return resp.json();
+    }
+
+    // ==================== 认证方法 ====================
+    async function fetchUser() {
+      try {
+        currentUser.value = await api('/api/auth/me');
+      } catch (e) {
+        ElMessage.error('获取用户信息失败');
+      }
+    }
+
+    async function handleLogin() {
+      loginLoading.value = true;
+      try {
+        const resp = await fetch(API + '/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(loginForm)
+        });
+        if (!resp.ok) {
+          ElMessage.error('用户名或密码错误');
+          return;
+        }
+        const data = await resp.json();
+        token.value = data.access_token;
+        refreshToken.value = data.refresh_token;
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('refresh_token', data.refresh_token);
+
+        // 记住我
+        if (rememberMe.value) {
+          localStorage.setItem('rememberMe', 'true');
+          localStorage.setItem('rememberedUser', loginForm.username);
+        } else {
+          localStorage.removeItem('rememberMe');
+          localStorage.removeItem('rememberedUser');
+        }
+
+        await fetchUser();
+        await Promise.all([fetchPersons(), fetchStats()]);
+        ElMessage.success('登录成功');
+      } catch (e) {
+        ElMessage.error('网络连接失败，请检查后重试');
+      } finally {
+        loginLoading.value = false;
+      }
+    }
+
+    function handleLogout() {
+      token.value = '';
+      refreshToken.value = '';
+      localStorage.removeItem('token');
+      localStorage.removeItem('refresh_token');
+      currentUser.value = {};
+      // 重置统计
+      Object.assign(statsData, { total: 0, '在帮': 0, '已解除': 0, '脱管': 0, '重点关注': 0, risk_high: 0, risk_mid: 0, risk_low: 0 });
+    }
+
+    // ==================== 全局统计 API ====================
+    async function fetchStats() {
+      try {
+        const data = await api('/api/persons/stats/summary');
+        Object.assign(statsData, {
+          total: data.total || 0,
+          '在帮': data['在帮'] || 0,
+          '已解除': data['已解除'] || 0,
+          '脱管': data['脱管'] || 0,
+          '重点关注': data['重点关注'] || 0,
+          risk_high: data.risk_high || 0,
+          risk_mid: data.risk_medium || 0,
+          risk_low: data.risk_low || 0,
+          expiring_soon: data.expiring_soon || 0
+        });
+      } catch (e) {
+        // 如果统计 API 失败，不影响主功能
+        console.warn('获取统计信息失败:', e.message);
+      }
+    }
+
+    // 风险等级条形图宽度计算
+    function riskBarWidth(level) {
+      const total = statsData.risk_high + statsData.risk_mid + statsData.risk_low;
+      if (!total) return '0%';
+      const map = { '高': statsData.risk_high, '中': statsData.risk_mid, '低': statsData.risk_low };
+      const pct = (map[level] / total) * 100;
+      return Math.max(pct, 5) + '%'; // 最小 5% 保证可见
+    }
+
+    // ==================== 人员列表 ====================
+    async function fetchPersons() {
+      tableLoading.value = true;
+      try {
+        const params = new URLSearchParams({ page: currentPage.value, page_size: 20 });
+        if (searchText.value) params.set('search', searchText.value);
+        if (filterStatus.value) params.set('status', filterStatus.value);
+        if (filterRisk.value) params.set('risk_level', filterRisk.value);
+        persons.value = await api(`/api/persons?${params}`);
+      } catch (e) {
+        ElMessage.error('获取人员列表失败：' + e.message);
+      } finally {
+        tableLoading.value = false;
+      }
+    }
+
+    // ==================== Excel 导出 ====================
+    async function handleExportExcel() {
+      exportLoading.value = true;
+      try {
+        const params = new URLSearchParams();
+        if (searchText.value) params.set('search', searchText.value);
+        if (filterStatus.value) params.set('status', filterStatus.value);
+        if (filterRisk.value) params.set('risk_level', filterRisk.value);
+
+        const resp = await fetch(API + `/api/persons/export/excel?${params}`, {
+          headers: { 'Authorization': `Bearer ${token.value}` }
+        });
+        if (!resp.ok) {
+          ElMessage.error('导出失败，请稍后重试');
+          return;
+        }
+        const blob = await resp.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `安置帮教人员台账_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        ElMessage.success('导出成功');
+      } catch (e) {
+        ElMessage.error('导出失败：' + e.message);
+      } finally {
+        exportLoading.value = false;
+      }
+    }
+
+    // ==================== 详情抽屉 ====================
+    function openDrawer(row) {
+      drawerPerson.value = row;
+      drawerVisible.value = true;
+      drawerTab.value = 'info';
+      editLogs.value = [];
+      visitList.value = [];
+      fileList.value = [];
+      visitQuarterFilter.value = '';
+    }
+
+    async function onDrawerTabChange(tab) {
+      if (!drawerPerson.value) return;
+      if (tab === 'visits') {
+        try {
+          const r = await api(`/api/visits?person_id=${drawerPerson.value.id}&page_size=100`);
+          visitList.value = r.items;
+        } catch (e) {
+          ElMessage.error('获取走访记录失败');
+          visitList.value = [];
+        }
+      }
+      if (tab === 'history') {
+        historyLoading.value = true;
+        try {
+          const r = await api(`/api/persons/${drawerPerson.value.id}/edit-logs`);
+          editLogs.value = r.items || r || [];
+        } catch (e) {
+          // 回退：尝试从人员详情中获取
+          try {
+            const r2 = await api(`/api/persons/${drawerPerson.value.id}`);
+            editLogs.value = r2.edit_logs || [];
+          } catch {
+            editLogs.value = [];
+          }
+        } finally {
+          historyLoading.value = false;
+        }
+      }
+      if (tab === 'files') {
+        try {
+          const r = await api(`/api/files/list/${drawerPerson.value.id}`);
+          fileList.value = r || [];
+        } catch (e) {
+          fileList.value = [];
+        }
+      }
+    }
+
+    function onFileUploadSuccess(res) {
+      ElMessage.success('文件上传成功');
+      // 刷新文件列表
+      if (drawerPerson.value) {
+        api(`/api/files/list/${drawerPerson.value.id}`).then(r => { fileList.value = r || []; });
+      }
+    }
+
+    async function deleteFile(fileId) {
+      try {
+        await api(`/api/files/${fileId}`, { method: 'DELETE' });
+        ElMessage.success('已删除');
+        if (drawerPerson.value) {
+          const r = await api(`/api/files/list/${drawerPerson.value.id}`);
+          fileList.value = r || [];
+        }
+      } catch (e) {
+        ElMessage.error('删除失败');
+      }
+    }
+
+    // ==================== 走访季度工具方法 ====================
+    /** 根据日期获取季度编号 (1-4) */
+    function getQuarter(dateStr) {
+      if (!dateStr) return 0;
+      const month = new Date(dateStr).getMonth();
+      return Math.floor(month / 3) + 1;
+    }
+
+    /** 获取季度显示标签 */
+    function getQuarterLabel(dateStr) {
+      if (!dateStr) return '';
+      const year = new Date(dateStr).getFullYear();
+      const q = getQuarter(dateStr);
+      return `${year}Q${q}`;
+    }
+
+    /** 获取季度标签 CSS 类 */
+    function getQuarterClass(dateStr) {
+      const q = getQuarter(dateStr);
+      return 'q' + q;
+    }
+
+    /** 计算当前季度走访数 */
+    const visitStatsCurrentQuarter = computed(() => {
+      const now = new Date();
+      const curQ = Math.floor(now.getMonth() / 3) + 1;
+      const curYear = now.getFullYear();
+      return visitList.value.filter(v => {
+        if (!v.visit_date) return false;
+        const d = new Date(v.visit_date);
+        return d.getFullYear() === curYear && Math.floor(d.getMonth() / 3) + 1 === curQ;
+      }).length;
+    });
+
+    /** 计算异常走访数 */
+    const visitStatsAbnormal = computed(() => {
+      return visitList.value.filter(v => v.has_abnormal).length;
+    });
+
+    /** 可选季度列表（去重排序） */
+    const availableQuarters = computed(() => {
+      const set = new Set();
+      visitList.value.forEach(v => {
+        if (v.visit_date) set.add(getQuarterLabel(v.visit_date));
+      });
+      return Array.from(set).sort().reverse();
+    });
+
+    /** 按季度筛选后的走访列表 */
+    const filteredVisitList = computed(() => {
+      if (!visitQuarterFilter.value) return visitList.value;
+      return visitList.value.filter(v => getQuarterLabel(v.visit_date) === visitQuarterFilter.value);
+    });
+
+    function filterVisitsByQuarter() {
+      // 触发 computed 重新计算（已通过响应式自动处理）
+    }
+
+    // ==================== 人员表单方法 ====================
+    function parseIdCard() {
+      const id = personForm.id_card;
+      if (id && id.length === 18) {
+        if (!personForm.gender) personForm.gender = parseInt(id[16]) % 2 === 1 ? '男' : '女';
+        if (!personForm.birth_date) {
+          personForm.birth_date = `${id.substring(6, 10)}-${id.substring(10, 12)}-${id.substring(12, 14)}`;
+        }
+      }
+    }
+
+    function resetForm() {
+      Object.assign(personForm, {
+        name: '', id_card: '', gender: '', birth_date: '',
+        household_addr: '', current_addr: '', phone: '',
+        original_crime: '', original_sentence: '', release_date: '',
+        edu_start_date: '', edu_end_date: '', responsible_person: '',
+        status: '在帮', risk_level: '低',
+        marital_status: '', education_level: '', employment: '',
+        health_status: '', economic_status: '', family_name: '', family_phone: '', notes: ''
+      });
+      editId.value = null;
+      formStep.value = 0;
+    }
+
+    function editPerson(row) {
+      resetForm();
+      Object.keys(personForm).forEach(k => {
+        if (row[k] !== undefined && row[k] !== null) personForm[k] = row[k];
+      });
+      editId.value = row.id;
+      showAddDialog.value = true;
+    }
+
+    async function submitPerson() {
+      submitLoading.value = true;
+      try {
+        const body = { ...personForm };
+        if (editId.value) {
+          await api(`/api/persons/${editId.value}`, { method: 'PUT', body: JSON.stringify(body) });
+          ElMessage.success('修改成功');
+        } else {
+          await api('/api/persons', { method: 'POST', body: JSON.stringify(body) });
+          ElMessage.success('新增成功');
+        }
+        showAddDialog.value = false;
+        resetForm();
+        await Promise.all([fetchPersons(), fetchStats()]);
+      } catch (e) {
+        ElMessage.error('操作失败：' + e.message);
+      } finally {
+        submitLoading.value = false;
+      }
+    }
+
+    async function deletePerson(row) {
+      try {
+        await api(`/api/persons/${row.id}`, { method: 'DELETE' });
+        ElMessage.success('已删除');
+        await Promise.all([fetchPersons(), fetchStats()]);
+      } catch (e) {
+        ElMessage.error('删除失败：' + e.message);
+      }
+    }
+
+    // ==================== 走访表单方法 ====================
+    function resetVisitForm() {
+      Object.assign(visitForm, {
+        visit_date: '', visitor: '', visit_method: '上门',
+        visit_location: '', companions: '', content: '',
+        has_abnormal: false, abnormal_detail: ''
+      });
+      editVisitId.value = null;
+    }
+
+    function editVisit(v) {
+      Object.assign(visitForm, {
+        visit_date: v.visit_date, visitor: v.visitor, visit_method: v.visit_method,
+        visit_location: v.visit_location || '', companions: v.companions || '',
+        content: v.content || '', has_abnormal: v.has_abnormal, abnormal_detail: v.abnormal_detail || ''
+      });
+      editVisitId.value = v.id;
+      showVisitDialog.value = true;
+    }
+
+    async function submitVisit() {
+      visitLoading.value = true;
+      try {
+        const body = { ...visitForm, person_id: drawerPerson.value.id };
+        if (editVisitId.value) {
+          await api(`/api/visits/${editVisitId.value}`, { method: 'PUT', body: JSON.stringify(body) });
+        } else {
+          await api('/api/visits', { method: 'POST', body: JSON.stringify(body) });
+        }
+        ElMessage.success('保存成功');
+        showVisitDialog.value = false;
+        const r = await api(`/api/visits?person_id=${drawerPerson.value.id}&page_size=100`);
+        visitList.value = r.items;
+      } catch (e) {
+        ElMessage.error('保存失败：' + e.message);
+      } finally {
+        visitLoading.value = false;
+      }
+    }
+
+    async function deleteVisit(v) {
+      try {
+        await api(`/api/visits/${v.id}`, { method: 'DELETE' });
+        ElMessage.success('已删除');
+        const r = await api(`/api/visits?person_id=${drawerPerson.value.id}&page_size=100`);
+        visitList.value = r.items;
+      } catch (e) {
+        ElMessage.error('删除失败：' + e.message);
+      }
+    }
+
+    // ==================== OCR 方法 ====================
+    function handleOcrFile(file) { ocrFile.value = file.raw; }
+
+    async function doOcrScan() {
+      if (!ocrFile.value) return;
+      ocrLoading.value = true;
+      try {
+        const fd = new FormData();
+        fd.append('file', ocrFile.value);
+        const resp = await fetch(API + '/api/ocr/scan', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token.value}` },
+          body: fd
+        });
+        if (!resp.ok) throw new Error('识别请求失败');
+        ocrResult.value = await resp.json();
+        if (ocrResult.value.success) {
+          Object.assign(ocrFields, ocrResult.value.fields);
+        }
+      } catch (e) {
+        ElMessage.error('OCR识别失败：' + e.message);
+      } finally {
+        ocrLoading.value = false;
+      }
+    }
+
+    async function ocrConfirmInsert() {
+      try {
+        await api('/api/persons', { method: 'POST', body: JSON.stringify({ ...ocrFields }) });
+        ElMessage.success('入库成功');
+        showOcrDialog.value = false;
+        ocrResult.value = null;
+        ocrFile.value = null;
+        await Promise.all([fetchPersons(), fetchStats()]);
+      } catch (e) {
+        ElMessage.error('入库失败：' + e.message);
+      }
+    }
+
+    // ==================== 工具函数 ====================
+    /** 通过身份证号计算年龄 */
+    function calcAge(bd) {
+      if (!bd) return '-';
+      return new Date().getFullYear() - new Date(bd).getFullYear();
+    }
+
+    /** 帮教截止日期样式（逾期红色，临近橙色，正常绿色） */
+    function deadlineStyle(ds) {
+      if (!ds) return {};
+      const diff = (new Date(ds) - new Date()) / (1e3 * 60 * 60 * 24);
+      if (diff < 0) return { color: '#ff4d4f', fontWeight: 'bold' };
+      if (diff < 90) return { color: '#faad14' };
+      return { color: '#52c41a' };
+    }
+
+    /** 格式化修改历史时间 */
+    function formatHistoryTime(ts) {
+      if (!ts) return '';
+      try {
+        const d = new Date(ts);
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      } catch {
+        return ts;
+      }
+    }
+
+    // ==================== 初始化 ====================
+    onMounted(async () => {
+      if (token.value) {
+        await fetchUser();
+        await Promise.all([fetchPersons(), fetchStats()]);
+      }
+    });
+
+    // ==================== 返回模板引用 ====================
+    return {
+      // 认证
+      token, currentUser, loginLoading, loginForm, loginRules, roleMap, rememberMe,
+      handleLogin, handleLogout,
+      // 统计
+      statsData, riskBarWidth, fetchStats,
+      // 人员列表
+      persons, searchText, filterStatus, filterRisk, currentPage, tableLoading, exportLoading,
+      fetchPersons, handleExportExcel,
+      // 详情抽屉
+      drawerVisible, drawerPerson, drawerTab, visitList, editLogs, historyLoading, fileList,
+      onDrawerTabChange, openDrawer, fieldLabelMap, formatHistoryTime,
+      onFileUploadSuccess, deleteFile,
+      // 走访季度
+      visitQuarterFilter, visitStatsCurrentQuarter, visitStatsAbnormal,
+      availableQuarters, filteredVisitList, filterVisitsByQuarter,
+      getQuarterLabel, getQuarterClass,
+      // 表单
+      showAddDialog, editId, formStep, submitLoading, formRef, personForm, formRules,
+      parseIdCard, editPerson, submitPerson, deletePerson,
+      // 走访
+      showVisitDialog, editVisitId, visitLoading, visitForm,
+      resetVisitForm, editVisit, submitVisit, deleteVisit,
+      // OCR
+      showOcrDialog, ocrFile, ocrLoading, ocrResult, ocrFields,
+      handleOcrFile, doOcrScan, ocrConfirmInsert,
+      // 工具
+      calcAge, deadlineStyle
+    };
+  }
+}).use(ElementPlus, { locale: ElementPlusLocaleZhCn }).mount('#app');
+</script>
+</body>
+</html>
