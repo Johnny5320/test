@@ -1,0 +1,6 @@
+-e 
+# 测试生成文件
+backend/test_ocr.*
+backend/test_id_card.*
+uploads/
+data.db
