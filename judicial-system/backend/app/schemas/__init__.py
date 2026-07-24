@@ -1,7 +1,8 @@
 """Pydantic 请求/响应模型"""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Union
 from datetime import date, datetime
+import re
 
 
 # ========== 认证 ==========
@@ -34,22 +35,48 @@ class ChangePasswordRequest(BaseModel):
 # ========== 人员 ==========
 class PersonCreate(BaseModel):
     """新增人员 — 必填字段"""
-    name: str = Field(max_length=20)
-    id_card: str = Field(max_length=18)
+    name: str = Field(min_length=1, max_length=20)
+    id_card: str = Field(min_length=18, max_length=18)
+
+    @field_validator('id_card')
+    @classmethod
+    def validate_id_card(cls, v):
+        if not re.match(r'^\d{17}[\dXx]$', v):
+            raise ValueError('身份证号必须是18位，前17位为数字，最后一位可为数字或X')
+        return v.upper()
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if len(v) > 20:
+            raise ValueError('姓名不能超过20个字符')
+        return v
     gender: Optional[str] = None
     birth_date: Optional[date] = None
+    household_province: Optional[str] = None
+    household_city: Optional[str] = None
+    household_district: Optional[str] = None
+    household_town: Optional[str] = None
     household_addr: Optional[str] = None
     current_addr: Optional[str] = None
+    village: Optional[str] = None
     phone: Optional[str] = None
     original_crime: Optional[str] = None
     original_sentence: Optional[str] = None
+    prison_place: Optional[str] = None
+    sentence_start_date: Optional[date] = None
     release_date: Optional[date] = None
     edu_start_date: Optional[date] = None
     edu_end_date: Optional[date] = None
     responsible_person: Optional[str] = None
     status: Optional[str] = "在帮"
+    is_key_target: Optional[bool] = False
+    risk_level: Optional[str] = "低"
+    visit_interval_days: Optional[int] = None
     family_name: Optional[str] = None
     family_phone: Optional[str] = None
+    family_name2: Optional[str] = None
+    family_phone2: Optional[str] = None
     marital_status: Optional[str] = None
     education_level: Optional[str] = None
     employment: Optional[str] = None
@@ -58,10 +85,6 @@ class PersonCreate(BaseModel):
     has_housing: Optional[bool] = True
     has_drug_history: Optional[bool] = False
     is_recidivist: Optional[bool] = False
-    risk_level: Optional[str] = "低"
-    visit_interval_days: Optional[int] = None  # 不填时根据风险等级自动设置
-    family_name2: Optional[str] = None
-    family_phone2: Optional[str] = None
     has_subsidy: Optional[bool] = False
     economic_status: Optional[str] = None
     notes: Optional[str] = None
@@ -73,21 +96,32 @@ class PersonUpdate(BaseModel):
     """修改人员 — 所有字段可选"""
     name: Optional[str] = None
     id_card: Optional[str] = None
-    visit_interval_days: Optional[int] = None
     gender: Optional[str] = None
     birth_date: Optional[date] = None
+    household_province: Optional[str] = None
+    household_city: Optional[str] = None
+    household_district: Optional[str] = None
+    household_town: Optional[str] = None
     household_addr: Optional[str] = None
     current_addr: Optional[str] = None
+    village: Optional[str] = None
     phone: Optional[str] = None
     original_crime: Optional[str] = None
     original_sentence: Optional[str] = None
+    prison_place: Optional[str] = None
+    sentence_start_date: Optional[date] = None
     release_date: Optional[date] = None
     edu_start_date: Optional[date] = None
     edu_end_date: Optional[date] = None
     responsible_person: Optional[str] = None
     status: Optional[str] = None
+    is_key_target: Optional[bool] = None
+    risk_level: Optional[str] = None
+    visit_interval_days: Optional[int] = None
     family_name: Optional[str] = None
     family_phone: Optional[str] = None
+    family_name2: Optional[str] = None
+    family_phone2: Optional[str] = None
     marital_status: Optional[str] = None
     education_level: Optional[str] = None
     employment: Optional[str] = None
@@ -96,9 +130,6 @@ class PersonUpdate(BaseModel):
     has_housing: Optional[bool] = None
     has_drug_history: Optional[bool] = None
     is_recidivist: Optional[bool] = None
-    risk_level: Optional[str] = None
-    family_name2: Optional[str] = None
-    family_phone2: Optional[str] = None
     has_subsidy: Optional[bool] = None
     economic_status: Optional[str] = None
     notes: Optional[str] = None
@@ -113,20 +144,30 @@ class PersonResponse(BaseModel):
     id_card: str
     gender: Optional[str] = None
     birth_date: Optional[date] = None
+    household_province: Optional[str] = None
+    household_city: Optional[str] = None
+    household_district: Optional[str] = None
+    household_town: Optional[str] = None
     household_addr: Optional[str] = None
     current_addr: Optional[str] = None
+    village: Optional[str] = None
     phone: Optional[str] = None
     original_crime: Optional[str] = None
     original_sentence: Optional[str] = None
+    prison_place: Optional[str] = None
+    sentence_start_date: Optional[date] = None
     release_date: Optional[date] = None
     edu_start_date: Optional[date] = None
     edu_end_date: Optional[date] = None
     responsible_person: Optional[str] = None
     status: str
     risk_level: str
+    is_key_target: Optional[bool] = False
     visit_interval_days: int = 90
     family_name: Optional[str] = None
     family_phone: Optional[str] = None
+    family_name2: Optional[str] = None
+    family_phone2: Optional[str] = None
     marital_status: Optional[str] = None
     education_level: Optional[str] = None
     employment: Optional[str] = None
@@ -135,8 +176,6 @@ class PersonResponse(BaseModel):
     has_housing: Optional[bool] = None
     has_drug_history: Optional[bool] = None
     is_recidivist: Optional[bool] = None
-    family_name2: Optional[str] = None
-    family_phone2: Optional[str] = None
     has_subsidy: Optional[bool] = None
     economic_status: Optional[str] = None
     notes: Optional[str] = None
@@ -207,9 +246,23 @@ class ResponsibleDistribution(BaseModel):
     count: int
 
 
+class NameCount(BaseModel):
+    name: str
+    count: int
+
+
+class PrisonDetail(BaseModel):
+    name: str
+    count: int
+    persons: List[dict] = []
+
+
 class StatsSummary(BaseModel):
     """统计汇总"""
     total: int
+    total_prison: int = 0
+    total_key_target: int = 0
+    total_village: int = 0
     在帮: int
     已解除: int
     脱管: int
@@ -218,9 +271,11 @@ class StatsSummary(BaseModel):
     risk_medium: int
     risk_low: int
     expiring_soon: int
-    monthly_new: int = 0  # 本月新增
-    quarterly_new: int = 0  # 本季度新增
-    responsible_distribution: List[ResponsibleDistribution] = []
+    monthly_new: int = 0
+    quarterly_new: int = 0
+    responsible_distribution: List[NameCount] = []
+    prison_distribution: List[NameCount] = []
+    village_distribution: List[NameCount] = []
 
 
 # ========== Excel 导入 ==========

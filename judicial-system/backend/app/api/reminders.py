@@ -10,8 +10,6 @@ from app.models.visit import Visit
 from app.schemas import (
     ExpiringPerson, OverdueVisitPerson, RemindersSummary,
 )
-from app.api.deps import get_current_user
-from app.models.user import User
 
 router = APIRouter(prefix="/api/reminders", tags=["提醒系统"])
 
@@ -28,7 +26,6 @@ def get_quarter_deadline(today: date = None) -> date:
 @router.get("", response_model=RemindersSummary)
 def get_reminders(
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """获取所有提醒汇总"""
     today = date.today()

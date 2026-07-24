@@ -10,8 +10,6 @@ from app.core.database import get_session
 from app.core.config import settings
 from app.models.file import File
 from app.models.person import Person
-from app.api.deps import get_current_user
-from app.models.user import User
 from app.schemas import ApiResponse
 
 router = APIRouter(prefix="/api/files", tags=["文件上传"])
@@ -26,7 +24,6 @@ async def upload_file(
     file_type: str = "扫描件",
     file: UploadFile = FastAPIFile(...),
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """上传文件（扫描件/照片）"""
     # 校验人员存在
@@ -69,7 +66,6 @@ async def upload_file(
 def list_files(
     person_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """获取人员的文件列表"""
     files = session.exec(
@@ -82,7 +78,6 @@ def list_files(
 def delete_file(
     file_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """删除文件"""
     file = session.get(File, file_id)

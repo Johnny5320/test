@@ -11,13 +11,12 @@ import io
 from app.core.database import get_session
 from app.models.person import Person
 from app.models.edit_log import EditLog
+from app.models.visit import Visit
 from app.schemas import (
     PersonCreate, PersonUpdate, PersonResponse,
-    EditLogResponse, StatsSummary, ResponsibleDistribution,
+    EditLogResponse, StatsSummary, NameCount,
     PaginatedResponse, ApiResponse, ImportResult, ImportErrorDetail,
 )
-from app.api.deps import get_current_user
-from app.models.user import User
 
 router = APIRouter(prefix="/api/persons", tags=["人员管理"])
 
@@ -27,6 +26,30 @@ def desensitize_id_card(id_card: str) -> str:
     if not id_card or len(id_card) < 10:
         return id_card
     return id_card[:6] + "*" * (len(id_card) - 10) + id_card[-4:]
+
+
+@router.get("/prisons")
+def list_prisons(session: Session = Depends(get_session)):
+    """获取所有去重的服刑场所及人数"""
+    q = select(Person.prison_place, func.count().label("cnt")).where(
+        Person.is_deleted == False, Person.prison_place != None, Person.prison_place != ""
+    ).group_by(Person.prison_place).order_by(func.count().desc())
+    results = session.exec(q).all()
+    return [{"name": r[0], "count": r[1]} for r in results]
+
+
+@router.get("/prisons/{prison_name}/persons")
+def list_prison_persons(
+    prison_name: str,
+    session: Session = Depends(get_session),
+):
+    """获取指定监狱的人员列表"""
+    persons = session.exec(
+        select(Person).where(
+            Person.is_deleted == False, Person.prison_place == prison_name
+        ).order_by(Person.name)
+    ).all()
+    return [{"id": p.id, "name": p.name, "id_card": p.id_card, "status": p.status} for p in persons]
 
 
 @router.get("", response_model=PaginatedResponse)
@@ -44,7 +67,6 @@ def list_persons(
     sort_by: str = Query("updated_at", pattern="^(name|id_card|status|risk_level|edu_end_date|created_at|updated_at)$"),
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """人员列表 - 分页、筛选、排序"""
     query = select(Person).where(Person.is_deleted == False)
@@ -92,12 +114,24 @@ def list_persons(
     query = query.offset(offset).limit(page_size)
     persons = session.exec(query).all()
 
-    # 身份证号处理（reveal=true 时显示完整）
+    # 身份证号处理（reveal=true 时显示完整）+ 最近走访信息
     items = []
     for p in persons:
         d = p.model_dump()
         if not reveal:
             d["id_card"] = desensitize_id_card(d["id_card"])
+        # 查询最近一次走访
+        last_visit = session.exec(
+            select(Visit).where(Visit.person_id == p.id).order_by(Visit.visit_date.desc()).limit(1)
+        ).first()
+        if last_visit:
+            d["last_visit_date"] = str(last_visit.visit_date)
+            d["last_visit_method"] = last_visit.visit_method
+            d["last_visitor"] = last_visit.visitor
+        else:
+            d["last_visit_date"] = None
+            d["last_visit_method"] = None
+            d["last_visitor"] = None
         items.append(d)
 
     return PaginatedResponse(
@@ -112,69 +146,96 @@ def list_persons(
 @router.get("/stats/summary", response_model=StatsSummary)
 def stats_summary(
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
-    """统计汇总 - 各状态/风险等级人数 + 即将到期人数"""
+    """统计汇总"""
     base = select(Person).where(Person.is_deleted == False)
     total = session.exec(select(func.count()).select_from(base.subquery())).one()
 
     # 按状态统计
     status_map = {}
     for s in ["在帮", "已解除", "脱管", "重点关注"]:
-        q = select(func.count()).select_from(
-            base.where(Person.status == s).subquery()
-        )
+        q = select(func.count()).select_from(base.where(Person.status == s).subquery())
         status_map[s] = session.exec(q).one()
 
     # 按风险等级统计
     risk_map = {}
     for level, key in [("高", "risk_high"), ("中", "risk_medium"), ("低", "risk_low")]:
-        q = select(func.count()).select_from(
-            base.where(Person.risk_level == level).subquery()
-        )
+        q = select(func.count()).select_from(base.where(Person.risk_level == level).subquery())
         risk_map[key] = session.exec(q).one()
 
-    # 即将到期:帮教截止日期在未来90天内且状态为"在帮"
+    # 监狱看守所人数
+    total_prison = session.exec(
+        select(func.count()).select_from(
+            base.where(Person.prison_place != None, Person.prison_place != "").subquery()
+        )
+    ).one()
+
+    # 重点帮教对象
+    total_key_target = session.exec(
+        select(func.count()).select_from(
+            base.where(Person.is_key_target == True).subquery()
+        )
+    ).one()
+
+    # 村/居总数
+    total_village = session.exec(
+        select(func.count()).select_from(
+            base.where(Person.village != None, Person.village != "").distinct().subquery()
+        )
+    ).one()
+
+    # 即将到期
     today = date.today()
     deadline = today + timedelta(days=90)
-    expiring_q = select(func.count()).select_from(
-        base.where(
-            Person.status == "在帮",
-            Person.edu_end_date != None,
-            Person.edu_end_date >= today,
-            Person.edu_end_date <= deadline,
-        ).subquery()
-    )
-    expiring_soon = session.exec(expiring_q).one()
+    expiring_soon = session.exec(
+        select(func.count()).select_from(
+            base.where(
+                Person.status == "在帮",
+                Person.edu_end_date != None,
+                Person.edu_end_date >= today,
+                Person.edu_end_date <= deadline,
+            ).subquery()
+        )
+    ).one()
 
-    # 本月新增
+    # 本月/本季度新增
     month_start = today.replace(day=1)
-    monthly_q = select(func.count()).select_from(
-        base.where(Person.created_at >= datetime(month_start.year, month_start.month, 1)).subquery()
-    )
-    monthly_new = session.exec(monthly_q).one()
-
-    # 本季度新增
+    monthly_new = session.exec(
+        select(func.count()).select_from(
+            base.where(Person.created_at >= datetime(month_start.year, month_start.month, 1)).subquery()
+        )
+    ).one()
     quarter = (today.month - 1) // 3
     quarter_start = today.replace(month=quarter * 3 + 1, day=1)
-    quarterly_q = select(func.count()).select_from(
-        base.where(Person.created_at >= datetime(quarter_start.year, quarter_start.month, 1)).subquery()
-    )
-    quarterly_new = session.exec(quarterly_q).one()
+    quarterly_new = session.exec(
+        select(func.count()).select_from(
+            base.where(Person.created_at >= datetime(quarter_start.year, quarter_start.month, 1)).subquery()
+        )
+    ).one()
 
     # 责任人分布
-    resp_q = select(
-        Person.responsible_person, func.count().label("cnt")
-    ).where(
+    resp_q = select(Person.responsible_person, func.count().label("cnt")).where(
         Person.is_deleted == False, Person.responsible_person != None, Person.responsible_person != ""
     ).group_by(Person.responsible_person).order_by(func.count().desc())
-    resp_results = session.exec(resp_q).all()
-    responsible_distribution = [
-        ResponsibleDistribution(name=r[0], count=r[1]) for r in resp_results
-    ]
+    responsible_distribution = [NameCount(name=r[0], count=r[1]) for r in session.exec(resp_q).all()]
+
+    # 监狱分布
+    prison_q = select(Person.prison_place, func.count().label("cnt")).where(
+        Person.is_deleted == False, Person.prison_place != None, Person.prison_place != ""
+    ).group_by(Person.prison_place).order_by(func.count().desc())
+    prison_distribution = [NameCount(name=r[0], count=r[1]) for r in session.exec(prison_q).all()]
+
+    # 村/居分布
+    village_q = select(Person.village, func.count().label("cnt")).where(
+        Person.is_deleted == False, Person.village != None, Person.village != ""
+    ).group_by(Person.village).order_by(func.count().desc())
+    village_distribution = [NameCount(name=r[0], count=r[1]) for r in session.exec(village_q).all()]
 
     return StatsSummary(
         total=total,
+        total_prison=total_prison,
+        total_key_target=total_key_target,
+        total_village=len(village_distribution),
         在帮=status_map["在帮"],
         已解除=status_map["已解除"],
         脱管=status_map["脱管"],
@@ -186,6 +247,8 @@ def stats_summary(
         monthly_new=monthly_new,
         quarterly_new=quarterly_new,
         responsible_distribution=responsible_distribution,
+        prison_distribution=prison_distribution,
+        village_distribution=village_distribution,
     )
 
 
@@ -194,7 +257,6 @@ def quarterly_report(
     year: Optional[int] = None,
     quarter: Optional[int] = None,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """季度报表"""
     today = date.today()
@@ -303,7 +365,6 @@ def export_excel(
     status: Optional[str] = None,
     risk_level: Optional[str] = None,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """导出人员列表为 Excel 文件"""
     from openpyxl import Workbook
@@ -438,7 +499,6 @@ def _infer_from_id_card(id_card: str) -> dict:
 
 @router.get("/import/template")
 def download_import_template(
-    current_user: User = Depends(get_current_user),
 ):
     """下载 Excel 导入模板"""
     from openpyxl import Workbook
@@ -505,7 +565,6 @@ def download_import_template(
 def import_excel(
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """Excel 批量导入人员"""
     from openpyxl import load_workbook
@@ -666,7 +725,6 @@ def import_excel(
 def get_person(
     person_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """获取单个人员详情"""
     person = session.get(Person, person_id)
@@ -679,7 +737,6 @@ def get_person(
 def get_edit_logs(
     person_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """获取人员修改历史 - 按时间倒序"""
     # 确保人员存在
@@ -699,7 +756,6 @@ def get_edit_logs(
 def create_person(
     data: PersonCreate,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """新增人员"""
     # 身份证号唯一检查
@@ -740,7 +796,6 @@ def update_person(
     person_id: int,
     data: PersonUpdate,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """修改人员信息 - 自动留痕"""
     person = session.get(Person, person_id)
@@ -778,7 +833,6 @@ def update_person(
 def delete_person(
     person_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """删除人员(软删除)"""
     person = session.get(Person, person_id)

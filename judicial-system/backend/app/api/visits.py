@@ -10,8 +10,6 @@ from app.models.visit import Visit
 from app.models.person import Person
 from app.models.edit_log import EditLog
 from app.schemas import VisitCreate, VisitResponse, PaginatedResponse, ApiResponse
-from app.api.deps import get_current_user
-from app.models.user import User
 
 router = APIRouter(prefix="/api/visits", tags=["走访记录"])
 
@@ -26,7 +24,6 @@ def get_quarter(d: date) -> str:
 def create_visit(
     data: VisitCreate,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """新增走访记录"""
     # 校验人员存在
@@ -51,7 +48,6 @@ def list_visits(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=2000),
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """走访记录列表 — 支持按人员和季度筛选"""
     query = select(Visit)
@@ -84,7 +80,6 @@ def list_visits(
 def get_visit(
     visit_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """获取单条走访记录"""
     visit = session.get(Visit, visit_id)
@@ -98,7 +93,6 @@ def update_visit(
     visit_id: int,
     data: VisitCreate,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """修改走访记录"""
     visit = session.get(Visit, visit_id)
@@ -119,7 +113,6 @@ def update_visit(
 def delete_visit(
     visit_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """删除走访记录"""
     visit = session.get(Visit, visit_id)
@@ -135,7 +128,6 @@ def delete_visit(
 def quarterly_stats(
     person_id: Optional[int] = None,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
 ):
     """走访季度统计"""
     current_quarter = get_quarter(date.today())
