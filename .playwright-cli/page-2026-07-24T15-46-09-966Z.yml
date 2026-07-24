@@ -1,0 +1,163 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - heading "🏛️ 安置帮教智能台账系统" [level=2] [ref=e5]:
+        - generic [ref=e6]: 🏛️
+        - text: 安置帮教智能台账系统
+      - generic [ref=e7]:
+        - text: 👤 未设置
+        - button "切换" [ref=e8] [cursor=pointer]
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - generic [ref=e13] [cursor=pointer]:
+            - generic [ref=e14]: 🏠
+            - generic [ref=e15]: 仪表盘
+          - generic [ref=e16] [cursor=pointer]:
+            - generic [ref=e17]: 📋
+            - generic [ref=e18]: 人员台账
+          - generic [ref=e19] [cursor=pointer]:
+            - generic [ref=e20]: 🚶
+            - generic [ref=e21]: 走访记录
+          - generic [ref=e22] [cursor=pointer]:
+            - generic [ref=e23]: ✏️
+            - generic [ref=e24]: 修改留痕
+          - generic [ref=e25] [cursor=pointer]:
+            - generic [ref=e26]: 📊
+            - generic [ref=e27]: 统计报表
+        - generic [ref=e28]: v3.0 · SQLite
+      - generic [ref=e29]:
+        - generic [ref=e30]: 仪表盘
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - generic [ref=e34] [cursor=pointer]:
+              - generic [ref=e35]: "113"
+              - generic [ref=e36]: 总人数
+            - generic [ref=e37] [cursor=pointer]:
+              - generic [ref=e38]: "39"
+              - generic [ref=e39]: 在帮
+            - generic [ref=e40] [cursor=pointer]:
+              - generic [ref=e41]: "26"
+              - generic [ref=e42]: 已解除
+            - generic [ref=e43] [cursor=pointer]:
+              - generic [ref=e44]: "21"
+              - generic [ref=e45]: 脱管
+            - generic [ref=e46] [cursor=pointer]:
+              - generic [ref=e47]: "2"
+              - generic [ref=e48]: 即将到期
+              - generic [ref=e49]: 90天内
+            - generic [ref=e50]:
+              - generic [ref=e51]: "27"
+              - generic [ref=e52]: 重点帮教对象
+            - generic [ref=e53] [cursor=pointer]:
+              - generic [ref=e54]: "7"
+              - generic [ref=e55]: 未成年
+            - generic [ref=e56] [cursor=pointer]:
+              - generic [ref=e57]: "6"
+              - generic [ref=e58]: xj
+            - generic [ref=e59] [cursor=pointer]:
+              - generic [ref=e60]: "5"
+              - generic [ref=e61]: 精神疾病
+          - generic [ref=e62]:
+            - generic [ref=e63]:
+              - generic [ref=e64]: 🔒 监狱看守所分布（101人在押）
+              - button "展开详情" [ref=e65] [cursor=pointer]
+            - generic [ref=e67]:
+              - generic [ref=e68] [cursor=pointer]: 南京市公安局看守所15人
+              - generic [ref=e69] [cursor=pointer]: 无锡市看守所13人
+              - generic [ref=e70] [cursor=pointer]: 苏州市看守所11人
+              - generic [ref=e71] [cursor=pointer]: 常州监狱11人
+              - generic [ref=e72] [cursor=pointer]: 镇江监狱10人
+              - generic [ref=e73] [cursor=pointer]: 盐城监狱10人
+              - generic [ref=e74] [cursor=pointer]: 南京监狱10人
+              - generic [ref=e75] [cursor=pointer]: 徐州监狱9人
+              - generic [ref=e76] [cursor=pointer]: 江苏省未成年犯管教所7人
+              - generic [ref=e77] [cursor=pointer]: 连云港监狱5人
+          - generic [ref=e78]:
+            - generic [ref=e79]:
+              - generic [ref=e80]: 风险等级分布
+              - generic [ref=e82]:
+                - generic [ref=e83]: 🔴 高 25人 (22%)
+                - generic [ref=e84]: 🟡 中 29人 (26%)
+                - generic [ref=e85]: 🟢 低 59人 (52%)
+            - generic [ref=e86]:
+              - generic [ref=e87]: 村/居人员分布（21个）
+              - generic [ref=e88]:
+                - generic [ref=e89] [cursor=pointer]: 翠苑社区10人
+                - generic [ref=e90] [cursor=pointer]: 玉林社区7人
+                - generic [ref=e91] [cursor=pointer]: 中南路社区7人
+                - generic [ref=e92] [cursor=pointer]: 马群街道6人
+                - generic [ref=e93] [cursor=pointer]: 秦虹街道6人
+                - generic [ref=e94] [cursor=pointer]: 泉城路社区6人
+                - generic [ref=e95] [cursor=pointer]: 沧波门社区6人
+                - generic [ref=e96] [cursor=pointer]: 月牙湖社区6人
+                - generic [ref=e97] [cursor=pointer]: 孝陵卫社区6人
+                - generic [ref=e98] [cursor=pointer]: 瑞金路社区5人
+                - generic [ref=e99] [cursor=pointer]: 天河南社区5人
+                - generic [ref=e100] [cursor=pointer]: 光华门社区5人
+                - generic [ref=e101] [cursor=pointer]: 花园路社区4人
+                - generic [ref=e102] [cursor=pointer]: 红花街道4人
+                - generic [ref=e103] [cursor=pointer]: 夫子庙社区4人
+                - generic [ref=e104] [cursor=pointer]: 双塘街道4人
+                - generic [ref=e105] [cursor=pointer]: 麒麟街道3人
+                - generic [ref=e106] [cursor=pointer]: 雨花社区3人
+                - generic [ref=e107] [cursor=pointer]: 湖南路社区2人
+                - generic [ref=e108] [cursor=pointer]: 幸福社区1人
+                - generic [ref=e109] [cursor=pointer]: 五里墩社区1人
+          - generic [ref=e110]:
+            - generic [ref=e111]:
+              - generic [ref=e112]: 本月新增
+              - generic [ref=e113]: "113"
+            - generic [ref=e114]:
+              - generic [ref=e115]: 本季度新增
+              - generic [ref=e116]: "113"
+            - generic [ref=e117]:
+              - generic [ref=e118]: 责任人分布
+              - generic [ref=e119]:
+                - generic [ref=e120]:
+                  - generic [ref=e121]: 李警官
+                  - generic [ref=e122]: 20人
+                - generic [ref=e123]:
+                  - generic [ref=e124]: 周警官
+                  - generic [ref=e125]: 16人
+                - generic [ref=e126]:
+                  - generic [ref=e127]: 赵警官
+                  - generic [ref=e128]: 14人
+                - generic [ref=e129]:
+                  - generic [ref=e130]: 杨警官
+                  - generic [ref=e131]: 13人
+                - generic [ref=e132]:
+                  - generic [ref=e133]: 张警官
+                  - generic [ref=e134]: 11人
+                - generic [ref=e135]:
+                  - generic [ref=e136]: 刘警官
+                  - generic [ref=e137]: 11人
+                - generic [ref=e138]:
+                  - generic [ref=e139]: 王警官
+                  - generic [ref=e140]: 9人
+                - generic [ref=e141]:
+                  - generic [ref=e142]: 陈警官
+                  - generic [ref=e143]: 7人
+                - generic [ref=e144]:
+                  - generic [ref=e145]: 张警官-玄武区
+                  - generic [ref=e146]: 1人
+          - generic [ref=e147]:
+            - generic [ref=e148]: 本季度走访概况
+            - generic [ref=e149]:
+              - generic [ref=e150]: 0总走访
+              - generic [ref=e151]: 0上门
+              - generic [ref=e152]: 0电话
+              - generic [ref=e153]: 0视频
+              - generic [ref=e154]: 0异常
+          - generic [ref=e155]:
+            - generic [ref=e156]: 📋 待办事项
+            - generic [ref=e158] [cursor=pointer]:
+              - generic [ref=e159]: "0"
+              - generic [ref=e160]: 距季度归档截止
+  - dialog "设置操作人" [ref=e162]:
+    - generic [active] [ref=e163]:
+      - banner [ref=e164]:
+        - heading "设置操作人" [level=2] [ref=e165]
+      - textbox "请输入您的姓名" [ref=e169]
+      - contentinfo [ref=e170]:
+        - button "确认" [disabled] [ref=e171]

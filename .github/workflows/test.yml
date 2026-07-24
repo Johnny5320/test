@@ -1,0 +1,149 @@
+name: Windows 测试
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装依赖
+        run: |
+          pip install -r judicial-system/backend/requirements.txt
+          pip install pytest httpx
+
+      - name: 运行测试
+        working-directory: judicial-system/backend
+        run: python -m pytest tests/ -v --tb=short
+
+      - name: 启动服务并测试 API
+        shell: python
+        run: |
+          import subprocess, time, httpx, sys, json
+          
+          # 启动服务
+          proc = subprocess.Popen(
+            [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
+            cwd="judicial-system/backend"
+          )
+          time.sleep(5)
+          
+          results = []
+          
+          def test(name, func):
+            try:
+              r = func()
+              results.append(f"✅ {name}: {r}")
+            except Exception as e:
+              results.append(f"❌ {name}: {e}")
+          
+          c = httpx.Client(base_url="http://127.0.0.1:8000", timeout=15)
+          
+          # 登录
+          def t_login():
+            r = c.post("/api/auth/login", json={"username":"admin","password":"admin123"})
+            assert r.status_code == 200
+            return f"OK"
+          test("登录", t_login)
+          
+          token = c.post("/api/auth/login", json={"username":"admin","password":"admin123"}).json()["access_token"]
+          h = {"Authorization": f"Bearer {token}"}
+          
+          # 用户信息
+          test("用户信息", lambda: f"{c.get('/api/auth/me', headers=h).json()['real_name']}")
+          
+          # 新增人员
+          def t_create():
+            r = c.post("/api/persons", json={"name":"张三","id_card":"320102199001011234","status":"在管","risk_level":"低"}, headers=h)
+            assert r.status_code == 201
+            return f"id={r.json()['id']}"
+          test("新增人员", t_create)
+          
+          # 人员列表（含最近走访）
+          def t_list():
+            r = c.get("/api/persons?page_size=20", headers=h)
+            d = r.json()
+            has_visit_field = "last_visit_date" in d["items"][0]
+            return f"total={d['total']}, has_last_visit={has_visit_field}"
+          test("人员列表", t_list)
+          
+          # 搜索
+          test("搜索", lambda: f"命中{c.get('/api/persons?search=张&page_size=20', headers=h).json()['total']}条")
+          
+          # 修改
+          test("修改人员", lambda: f"{c.put('/api/persons/1', json={'risk_level':'高'}, headers=h).status_code}")
+          
+          # 修改历史
+          test("修改历史", lambda: f"{len(c.get('/api/persons/1/edit-logs', headers=h).json())}条")
+          
+          # 统计
+          test("统计汇总", lambda: f"total={c.get('/api/persons/stats/summary', headers=h).json()['total']}")
+          
+          # 提醒
+          test("提醒系统", lambda: f"keys={list(c.get('/api/reminders', headers=h).json().keys())[:3]}")
+          
+          # 走访
+          def t_visit():
+            r = c.post("/api/visits", json={"person_id":1,"visit_date":"2026-07-24","visitor":"张科员","visit_method":"上门","content":"测试"}, headers=h)
+            return f"{r.status_code}"
+          test("新增走访", t_visit)
+          
+          # 走访列表
+          test("走访列表", lambda: f"total={c.get('/api/visits?page_size=100', headers=h).json()['total']}")
+          
+          # 走访同步到人员列表
+          def t_sync():
+            r = c.get("/api/persons?page_size=5", headers=h)
+            p = r.json()["items"][0]
+            return f"last_visit={p.get('last_visit_date','无')}, visitor={p.get('last_visitor','无')}"
+          test("走访同步", t_sync)
+          
+          # 季度统计
+          test("季度统计", lambda: f"total={c.get('/api/visits/stats/quarterly', headers=h).json()['total']}")
+          
+          # Excel导出
+          test("Excel导出", lambda: f"{len(c.get('/api/persons/export/excel', headers=h).content)}bytes")
+          
+          # 文件上传
+          import struct, zlib
+          def t_upload():
+            sig = b'\x89PNG\r\n\x1a\n'
+            def chunk(ct, d):
+              c2 = ct + d
+              return struct.pack('>I', len(d)) + c2 + struct.pack('>I', zlib.crc32(c2) & 0xFFFFFFFF)
+            png = sig + chunk(b'IHDR', struct.pack('>IIBBBBB',1,1,8,2,0,0,0)) + chunk(b'IDAT', zlib.compress(b'\x00\xff\xff\xff')) + chunk(b'IEND', b'')
+            r = c.post('/api/files/upload?person_id=1&file_type=测试', headers=h, files={'file': ('test.png', png, 'image/png')})
+            return f"{r.status_code}"
+          test("文件上传", t_upload)
+          
+          # 改密码
+          test("改密码", lambda: f"{c.post('/api/auth/change-password', json={'old_password':'admin123','new_password':'admin123'}, headers=h).status_code}")
+          
+          # 季度报表
+          test("季度报表", lambda: f"{c.get('/api/persons/reports/quarterly', headers=h).status_code}")
+          
+          proc.terminate()
+          
+          print()
+          print("=" * 60)
+          print("  Windows API 测试结果")
+          print("=" * 60)
+          passed = sum(1 for r in results if r.startswith("✅"))
+          failed = sum(1 for r in results if r.startswith("❌"))
+          for r in results:
+            print(f"  {r}")
+          print(f"\n  通过: {passed}/{len(results)}, 失败: {failed}")
+          print("=" * 60)
+          
+          if failed > 0:
+            sys.exit(1)
