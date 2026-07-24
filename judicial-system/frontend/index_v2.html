@@ -55,9 +55,10 @@
 
     /* ========== 状态色标 ========== */
     .status-tag{padding:2px 8px;border-radius:4px;font-size:12px;display:inline-block}
-    .status-在管{background:#e6f7e6;color:#52c41a}
-    .status-已解管{background:#e6f0ff;color:#1890ff}
+    .status-在帮{background:#e6f7e6;color:#52c41a}
+    .status-已解除{background:#e6f0ff;color:#1890ff}
     .status-脱管{background:#fff7e6;color:#faad14}
+    .status-重点关注{background:#fff1f0;color:#ff4d4f}
     .risk-高{color:#ff4d4f;font-weight:bold}
     .risk-中{color:#faad14}
     .risk-低{color:#52c41a}
@@ -147,9 +148,10 @@
               <template #append><el-button @click="fetchPersons">搜索</el-button></template>
             </el-input>
             <el-select v-model="filterStatus" placeholder="状态" clearable style="width:110px" @change="fetchPersons" size="small">
-              <el-option label="在管" value="在管"></el-option>
-              <el-option label="已解管" value="已解管"></el-option>
-              <el-option label="脱管" value="脱管"></el-option>
+              <el-option label="在帮" value="在帮"></el-option>
+              <el-option label="已解除" value="已解除"></el-option>
+<el-option label="脱管" value="脱管"></el-option>
+              <el-option label="重点关注" value="重点关注"></el-option>
             </el-select>
             <el-select v-model="filterRisk" placeholder="风险" clearable style="width:100px" @change="fetchPersons" size="small">
               <el-option label="高" value="高"></el-option>
@@ -184,26 +186,30 @@
           <template v-if="currentView === 'dashboard'">
             <!-- 核心指标 -->
             <div class="stats-bar">
-              <div class="stat-card">
+              <div class="stat-card" style="cursor:pointer" @click="currentView='ledger';onMenuChange('ledger')">
                 <div class="num" style="color:#409eff">{{ statsData.total }}</div>
                 <div class="label">总人数</div>
+                <div class="sub">点击查看</div>
               </div>
-              <div class="stat-card">
-                <div class="num" style="color:#52c41a">{{ statsData['在管'] }}</div>
-                <div class="label">在管</div>
+              <div class="stat-card" style="cursor:pointer" @click="currentView='ledger';filterStatus='在帮';fetchPersons()">
+                <div class="num" style="color:#52c41a">{{ statsData['在帮'] }}</div>
+                <div class="label">在帮</div>
+                <div class="sub">点击查看</div>
               </div>
-              <div class="stat-card">
-                <div class="num" style="color:#1890ff">{{ statsData['已解管'] }}</div>
-                <div class="label">已解管</div>
+              <div class="stat-card" style="cursor:pointer" @click="currentView='ledger';filterStatus='已解除';fetchPersons()">
+                <div class="num" style="color:#1890ff">{{ statsData['已解除'] }}</div>
+                <div class="label">已解除</div>
+                <div class="sub">点击查看</div>
               </div>
-              <div class="stat-card">
+              <div class="stat-card" style="cursor:pointer" @click="currentView='ledger';filterStatus='脱管';fetchPersons()">
                 <div class="num" style="color:#faad14">{{ statsData['脱管'] }}</div>
                 <div class="label">脱管</div>
+                <div class="sub">点击查看</div>
               </div>
               <div class="stat-card" style="cursor:pointer" @click="currentView='ledger';filterStatus='';filterRisk='';fetchPersonsByExpiring()">
                 <div class="num" style="color:#ff4d4f">{{ statsData.expiring_soon }}</div>
                 <div class="label">即将到期</div>
-                <div class="sub">90天内 · 点击查看</div></div>
+                <div class="sub">90天内 · 点击查看</div>
               </div>
             </div>
 
@@ -275,10 +281,10 @@
             <div style="background:#fff;border-radius:8px;padding:16px;margin-bottom:20px">
               <div style="font-size:14px;color:#333;margin-bottom:12px">本季度走访概况</div>
               <div style="display:flex;gap:20px">
-                <div><span style="font-size:24px;font-weight:bold;color:#409eff">{{ visitStats.total || 0 }}</span><span style="color:#999;margin-left:4px">总走访</span></div>
-                <div><span style="font-size:24px;font-weight:bold;color:#52c41a">{{ visitStats['上门'] || 0 }}</span><span style="color:#999;margin-left:4px">上门</span></div>
-                <div><span style="font-size:24px;font-weight:bold;color:#1890ff">{{ visitStats['电话'] || 0 }}</span><span style="color:#999;margin-left:4px">电话</span></div>
-                <div><span style="font-size:24px;font-weight:bold;color:#faad14">{{ visitStats['视频'] || 0 }}</span><span style="color:#999;margin-left:4px">视频</span></div>
+                <div style="cursor:pointer" @click="currentView='visits';onMenuChange('visits')"><span style="font-size:24px;font-weight:bold;color:#409eff">{{ visitStats.total || 0 }}</span><span style="color:#999;margin-left:4px">总走访 →</span></div>
+                <div style="cursor:pointer" @click="currentView='visits';onMenuChange('visits')"><span style="font-size:24px;font-weight:bold;color:#52c41a">{{ visitStats['上门'] || 0 }}</span><span style="color:#999;margin-left:4px">上门 →</span></div>
+                <div style="cursor:pointer" @click="currentView='visits';onMenuChange('visits')"><span style="font-size:24px;font-weight:bold;color:#1890ff">{{ visitStats['电话'] || 0 }}</span><span style="color:#999;margin-left:4px">电话 →</span></div>
+                <div style="cursor:pointer" @click="currentView='visits';onMenuChange('visits')"><span style="font-size:24px;font-weight:bold;color:#faad14">{{ visitStats['视频'] || 0 }}</span><span style="color:#999;margin-left:4px">视频 →</span></div>
                 <div style="cursor:pointer" @click="currentView='visits';onMenuChange('visits')"><span style="font-size:24px;font-weight:bold;color:#ff4d4f">{{ visitStats['有异常'] || 0 }}</span><span style="color:#999;margin-left:4px">异常 →</span></div>
               </div>
             </div>
@@ -318,6 +324,12 @@
                 <template #default="{row}"><span :class="'risk-'+row.risk_level">{{ row.risk_level }}</span></template>
               </el-table-column>
               <el-table-column prop="responsible_person" label="责任人" width="90"></el-table-column>
+              <el-table-column label="最近走访" width="110">
+                <template #default="{row}">{{ row.last_visit_date || '-' }}</template>
+              </el-table-column>
+              <el-table-column label="走访人" width="80">
+                <template #default="{row}">{{ row.last_visitor || '-' }}</template>
+              </el-table-column>
               <el-table-column label="帮教截止" width="110">
                 <template #default="{row}"><span :style="deadlineStyle(row.edu_end_date)">{{ row.edu_end_date || '-' }}</span></template>
               </el-table-column>
@@ -472,7 +484,7 @@
             <div style="background:#fff;border-radius:8px;padding:20px">
               <h4 style="margin-bottom:16px">系统管理</h4>
               <p style="color:#666">SQLAdmin 管理后台入口</p>
-              <el-button type="primary" style="margin-top:12px" @click="window.open('/admin','_blank')">打开管理后台</el-button>
+              <el-button type="primary" style="margin-top:12px" onclick="window.open('/admin','_blank')">打开管理后台</el-button>
             </div>
           </template>
         </div>
@@ -652,7 +664,7 @@
         <el-form-item label="帮教起始"><el-date-picker v-model="personForm.edu_start_date" type="date" value-format="YYYY-MM-DD" style="width:100%"></el-date-picker></el-form-item>
         <el-form-item label="帮教截止"><el-date-picker v-model="personForm.edu_end_date" type="date" value-format="YYYY-MM-DD" style="width:100%"></el-date-picker></el-form-item>
         <el-form-item label="责任人"><el-input v-model="personForm.responsible_person"></el-input></el-form-item>
-        <el-form-item label="状态"><el-select v-model="personForm.status"><el-option label="在管" value="在管"></el-option><el-option label="已解管" value="已解管"></el-option><el-option label="脱管" value="脱管"></el-option></el-select></el-form-item>
+        <el-form-item label="状态"><el-select v-model="personForm.status"><el-option label="在帮" value="在帮"></el-option><el-option label="已解除" value="已解除"></el-option><el-option label="脱管" value="脱管"></el-option><el-option label="重点关注" value="重点关注"></el-option></el-select></el-form-item>
         <el-form-item label="风险等级"><el-select v-model="personForm.risk_level"><el-option label="高" value="高"></el-option><el-option label="中" value="中"></el-option><el-option label="低" value="低"></el-option></el-select></el-form-item>
       </div>
       <div v-show="formStep===2">
@@ -719,7 +731,7 @@ createApp({
     const currentMenuLabel=computed(()=>menuItems.find(m=>m.key===currentView.value)?.label||'');
 
     // ===== 统计 =====
-    const statsData=reactive({total:0,'在管':0,'已解管':0,'脱管':0,risk_high:0,risk_mid:0,risk_low:0,expiring_soon:0,monthly_new:0,quarterly_new:0,responsible_distribution:[]});
+    const statsData=reactive({total:0,'在帮':0,'已解除':0,'脱管':0,risk_high:0,risk_mid:0,risk_low:0,expiring_soon:0,monthly_new:0,quarterly_new:0,responsible_distribution:[]});
 
     // ===== 提醒 =====
     const reminders=reactive({expiring_30d:0,expiring_7d:0,overdue_expired:0,visit_overdue:0,quarter_deadline_days:0,quarter_deadline_date:'',expiring_list:[],visit_overdue_list:[]});
@@ -815,7 +827,7 @@ createApp({
     }
     async function fetchPersonsByExpiring(){
       tableLoading.value=true;
-      const params=new URLSearchParams({page:1,page_size:100,status:'在管'});
+      const params=new URLSearchParams({page:1,page_size:100,status:'在帮'});
       const r=await api(`/api/persons?${params}`);
       // 筛选90天内到期的
       const now=new Date();
@@ -864,7 +876,7 @@ createApp({
     const formStep=ref(0);
     const submitLoading=ref(false);
     const formRef=ref(null);
-    const personForm=reactive({name:'',id_card:'',gender:'',birth_date:'',household_addr:'',current_addr:'',phone:'',original_crime:'',original_sentence:'',release_date:'',edu_start_date:'',edu_end_date:'',responsible_person:'',status:'在管',risk_level:'低',marital_status:'',education_level:'',employment:'',health_status:'',economic_status:'',family_name:'',family_phone:'',notes:''});
+    const personForm=reactive({name:'',id_card:'',gender:'',birth_date:'',household_addr:'',current_addr:'',phone:'',original_crime:'',original_sentence:'',release_date:'',edu_start_date:'',edu_end_date:'',responsible_person:'',status:'在帮',risk_level:'低',marital_status:'',education_level:'',employment:'',health_status:'',economic_status:'',family_name:'',family_phone:'',notes:''});
     const formRules={name:[{required:true,message:'请输入姓名',trigger:'blur'}],id_card:[{required:true,message:'请输入身份证号',trigger:'blur'}]};
     const fieldLabelMap={name:'姓名',id_card:'身份证号',gender:'性别',phone:'电话',status:'状态',risk_level:'风险等级',current_addr:'现住址',responsible_person:'责任人',notes:'备注',employment:'就业情况',economic_status:'经济状况'};
 
@@ -901,7 +913,7 @@ createApp({
     async function fetchStats(){
       try{
         const data=await api('/api/persons/stats/summary');
-        Object.assign(statsData,{total:data.total||0,'在管':data['在管']||0,'已解管':data['已解管']||0,'脱管':data['脱管']||0,risk_high:data.risk_high||0,risk_mid:data.risk_medium||0,risk_low:data.risk_low||0,expiring_soon:data.expiring_soon||0,monthly_new:data.monthly_new||0,quarterly_new:data.quarterly_new||0,responsible_distribution:data.responsible_distribution||[]});
+        Object.assign(statsData,{total:data.total||0,'在帮':data['在帮']||0,'已解除':data['已解除']||0,'脱管':data['脱管']||0,risk_high:data.risk_high||0,risk_mid:data.risk_medium||0,risk_low:data.risk_low||0,expiring_soon:data.expiring_soon||0,monthly_new:data.monthly_new||0,quarterly_new:data.quarterly_new||0,responsible_distribution:data.responsible_distribution||[]});
       }catch(e){console.warn('统计失败:',e.message);}
     }
 
@@ -925,7 +937,7 @@ createApp({
 
     async function fetchAllVisits(){
       try{
-        const r=await api('/api/visits?page_size=1000');
+        const r=await api('/api/visits?page_size=100');
         allVisits.value=r.items||[];
       }catch{allVisits.value=[];}
     }
@@ -941,7 +953,7 @@ createApp({
       historyLoading.value=true;
       try{
         // 收集所有人员的修改记录
-        const pList=await api('/api/persons?page_size=200');
+        const pList=await api('/api/persons?page_size=100');
         const logs=[];
         for(const p of (pList.items||[])){
           try{
@@ -960,7 +972,7 @@ createApp({
     async function fetchAllFiles(){
       filesLoading.value=true;
       try{
-        const pList=await api('/api/persons?page_size=200');
+        const pList=await api('/api/persons?page_size=100');
         const files=[];
         for(const p of (pList.items||[])){
           try{
@@ -1008,13 +1020,14 @@ createApp({
     function deadlineStyle(ds){if(!ds)return{};const diff=(new Date(ds)-new Date())/(1e3*60*60*24);if(diff<0)return{color:'#ff4d4f',fontWeight:'bold'};if(diff<90)return{color:'#faad14'};return{};}
 
     function parseIdCard(){const id=personForm.id_card;if(id&&id.length===18){if(!personForm.gender)personForm.gender=parseInt(id[16])%2===1?'男':'女';if(!personForm.birth_date)personForm.birth_date=`${id.substring(6,10)}-${id.substring(10,12)}-${id.substring(12,14)}`;}}
-    function resetForm(){Object.assign(personForm,{name:'',id_card:'',gender:'',birth_date:'',household_addr:'',current_addr:'',phone:'',original_crime:'',original_sentence:'',release_date:'',edu_start_date:'',edu_end_date:'',responsible_person:'',status:'在管',risk_level:'低',marital_status:'',education_level:'',employment:'',health_status:'',economic_status:'',family_name:'',family_phone:'',notes:''});editId.value=null;formStep.value=0;}
+    function resetForm(){Object.assign(personForm,{name:'',id_card:'',gender:'',birth_date:'',household_addr:'',current_addr:'',phone:'',original_crime:'',original_sentence:'',release_date:'',edu_start_date:'',edu_end_date:'',responsible_person:'',status:'在帮',risk_level:'低',marital_status:'',education_level:'',employment:'',health_status:'',economic_status:'',family_name:'',family_phone:'',notes:''});editId.value=null;formStep.value=0;}
     function editPerson(row){resetForm();Object.keys(personForm).forEach(k=>{if(row[k]!==undefined&&row[k]!==null)personForm[k]=row[k];});editId.value=row.id;showAddDialog.value=true;}
 
     async function submitPerson(){
       submitLoading.value=true;
       try{
         const body={...personForm};
+        ['birth_date','release_date','edu_start_date','edu_end_date'].forEach(k=>{if(body[k]==='')body[k]=null;});
         if(editId.value){await api(`/api/persons/${editId.value}`,{method:'PUT',body:JSON.stringify(body)});ElMessage.success('修改成功');}
         else{await api('/api/persons',{method:'POST',body:JSON.stringify(body)});ElMessage.success('新增成功');}
         showAddDialog.value=false;resetForm();fetchPersons();fetchStats();
