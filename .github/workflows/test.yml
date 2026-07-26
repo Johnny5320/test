@@ -36,17 +36,17 @@ jobs:
         run: |
           import subprocess, time, httpx, sys, json
           from datetime import date, timedelta
-          
+
           proc = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
             cwd="judicial-system/backend"
           )
           time.sleep(5)
-          
+
           results = []
           PASS = 0
           FAIL = 0
-          
+
           def test(name, func):
             global PASS, FAIL
             try:
@@ -56,17 +56,17 @@ jobs:
             except Exception as e:
               FAIL += 1
               results.append(f"❌ {name}: {e}")
-          
+
           c = httpx.Client(base_url="http://127.0.0.1:8000", timeout=15)
-          
+
           # 登录
           r = c.post("/api/auth/login", json={"username":"admin","password":"admin123"})
           assert r.status_code == 200
           TOKEN = r.json()["access_token"]
           H = {"Authorization": f"Bearer {TOKEN}"}
-          
+
           today = date.today()
-          
+
           # ========== 准备测试数据 ==========
           test_data = [
             {"name": "A_5天到期", "id_card": "320102199001010001", "status": "在帮", "risk_level": "高",
@@ -93,7 +93,7 @@ jobs:
               r2 = c.get(f"/api/persons?search={d['name']}", headers=H)
               if r2.json()["items"]:
                 ids.append(r2.json()["items"][0]["id"])
-          
+
           # ========== 基础功能 ==========
           test("登录", lambda: "OK")
           test("用户信息", lambda: f"{c.get('/api/auth/me', headers=H).json()['real_name']}")
@@ -105,7 +105,7 @@ jobs:
           test("统计汇总", lambda: f"total={c.get('/api/persons/stats/summary', headers=H).json()['total']}")
           test("季度报表", lambda: f"{c.get('/api/persons/reports/quarterly', headers=H).status_code}")
           test("Excel导出", lambda: f"{len(c.get('/api/persons/export/excel', headers=H).content)}bytes")
-          
+
           # ========== Bug 1: 预警列表 ==========
           def t_expiring_list():
             d = c.get("/api/reminders", headers=H).json()
@@ -116,7 +116,7 @@ jobs:
               assert k in item, f"缺少字段 {k}"
             return f"{len(d['expiring_list'])}人, 字段完整"
           test("预警列表-字段完整", t_expiring_list)
-          
+
           def t_expiring_contains():
             d = c.get("/api/reminders", headers=H).json()
             names = [p["name"] for p in d["expiring_list"]]
@@ -125,7 +125,7 @@ jobs:
             assert "F_已解除" not in names, f"已解除不应出现"
             return f"包含正确人员"
           test("预警列表-人员正确", t_expiring_contains)
-          
+
           def t_expiring_days():
             d = c.get("/api/reminders", headers=H).json()
             item = next(p for p in d["expiring_list"] if p["name"]=="A_5天到期")
@@ -133,13 +133,13 @@ jobs:
             assert item["level"] == "7天", f"应标记7天: {item['level']}"
             return f"days={item['days_remaining']}, level={item['level']}"
           test("预警列表-天数计算", t_expiring_days)
-          
+
           def t_overdue_list():
             d = c.get("/api/reminders", headers=H).json()
             assert "visit_overdue_list" in d, "缺少 visit_overdue_list"
             return f"{len(d['visit_overdue_list'])}人"
           test("预警列表-走访超期", t_overdue_list)
-          
+
           # ========== Bug 2: 到期筛选 ==========
           def t_7d_filter():
             r = c.get("/api/persons?expiring_within_days=7", headers=H)
@@ -149,7 +149,7 @@ jobs:
             assert "E_正常90天" not in names, f"90天不应包含"
             return f"{r.json()['total']}人: {names}"
           test("7天到期筛选", t_7d_filter)
-          
+
           def t_30d_filter():
             r = c.get("/api/persons?expiring_within_days=30", headers=H)
             names = [p["name"] for p in r.json()["items"]]
@@ -159,14 +159,14 @@ jobs:
             assert "E_正常90天" not in names
             return f"{r.json()['total']}人"
           test("30天到期筛选", t_30d_filter)
-          
+
           def t_30d_only_active():
             r = c.get("/api/persons?expiring_within_days=30", headers=H)
             statuses = set(p["status"] for p in r.json()["items"])
             assert statuses == {"在帮"}, f"应全在帮: {statuses}"
             return f"全部在帮"
           test("到期筛选-只含在帮", t_30d_only_active)
-          
+
           # ========== Bug 3: 组合筛选 ==========
           def t_minor_mental():
             r1 = c.get("/api/persons?is_minor=true", headers=H)
@@ -177,7 +177,7 @@ jobs:
             assert "B_15天到期" in n1 and "B_15天到期" not in n2
             return f"未成年({len(n1)}) + 精神({len(n2)})"
           test("组合筛选:未成年+精神", t_minor_mental)
-          
+
           def t_mental_minor_reverse():
             r1 = c.get("/api/persons?is_mental=true", headers=H)
             r2 = c.get("/api/persons?is_mental=true&is_minor=true", headers=H)
@@ -186,7 +186,7 @@ jobs:
             assert "D_已超期" in n1 and "D_已超期" not in n2
             return f"精神({len(n1)}) + 未成年({len(n2)})"
           test("组合筛选:精神+未成年", t_mental_minor_reverse)
-          
+
           def t_expiring_minor():
             r = c.get("/api/persons?expiring_within_days=30&is_minor=true", headers=H)
             names = [p["name"] for p in r.json()["items"]]
@@ -195,33 +195,64 @@ jobs:
             assert "A_5天到期" not in names
             return f"{len(names)}人: {names}"
           test("组合筛选:到期+未成年", t_expiring_minor)
-          
+
           def t_xj_filter():
             r = c.get("/api/persons?is_xj=true", headers=H)
             names = [p["name"] for p in r.json()["items"]]
             assert "C_25天到期" in names
             return f"{len(names)}人"
           test("xj筛选", t_xj_filter)
-          
+
           def t_status_filter():
             r = c.get("/api/persons?status=在帮", headers=H)
             for p in r.json()["items"]:
               assert p["status"] == "在帮"
             return f"{r.json()['total']}人"
           test("状态筛选", t_status_filter)
-          
+
+          # ========== 新增API: 月度趋势/风险评分/批量操作 ==========
+          def t_trend():
+            r = c.get("/api/persons/stats/trend?months=3", headers=H)
+            assert r.status_code == 200 and len(r.json()) > 0
+            return f"{len(r.json())}个月"
+          test("月度趋势", t_trend)
+
+          def t_risk_score():
+            r = c.get(f"/api/persons/{ids[-1]}/risk-score", headers=H)
+            assert r.status_code == 200 and "score" in r.json()
+            return f"score={r.json()['score']}, level={r.json()['level']}"
+          test("风险评分", t_risk_score)
+
+          def t_batch_delete():
+            r = c.post("/api/persons/batch/delete", json={"ids":[ids[0]]}, headers=H)
+            assert r.status_code == 200
+            return r.json()["message"]
+          test("批量删除", t_batch_delete)
+
+          def t_batch_status():
+            r = c.post("/api/persons/batch/status", json={"ids":[ids[1]],"status":"脱管"}, headers=H)
+            assert r.status_code == 200
+            return r.json()["message"]
+          test("批量改状态", t_batch_status)
+
+          def t_batch_risk():
+            r = c.post("/api/persons/batch/risk", json={"ids":[ids[2]],"risk_level":"高"}, headers=H)
+            assert r.status_code == 200
+            return r.json()["message"]
+          test("批量改风险", t_batch_risk)
+
           # 走访
           def t_visit():
             r = c.post("/api/visits", json={"person_id":ids[0],"visit_date":str(today),"visitor":"测试员","visit_method":"上门","content":"集成测试"}, headers=H)
             return f"{r.status_code}"
           test("新增走访", t_visit)
-          
+
           test("走访列表", lambda: f"total={c.get('/api/visits?page_size=100', headers=H).json()['total']}")
           test("季度走访统计", lambda: f"total={c.get('/api/visits/stats/quarterly', headers=H).json()['total']}")
           test("改密码", lambda: f"{c.post('/api/auth/change-password', json={'old_password':'admin123','new_password':'admin123'}, headers=H).status_code}")
-          
+
           proc.terminate()
-          
+
           print()
           print("=" * 60)
           print(f"  测试结果: {PASS} 通过 / {FAIL} 失败 / {PASS+FAIL} 总计")
@@ -232,4 +263,4 @@ jobs:
             print(f"\n  ❌ 有 {FAIL} 项失败")
             sys.exit(1)
           else:
-            print(f"\n  🎉 全部通过！")
+            print(f"\n  🎉 全部通过!")
