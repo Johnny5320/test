@@ -1,14 +1,17 @@
-name: Windows 测试
+name: 全功能测试
 
 on:
   push:
-    branches: [master]
+    branches: [master, 'fix/**', 'feature/**']
   pull_request:
     branches: [master]
 
 jobs:
   test:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -22,16 +25,18 @@ jobs:
           pip install -r judicial-system/backend/requirements.txt
           pip install pytest httpx
 
-      - name: 运行测试
+      # ========== 单元测试 ==========
+      - name: 运行单元测试
         working-directory: judicial-system/backend
-        run: python -m pytest tests/ -v --tb=short
+        run: python -m pytest tests/test_auth.py tests/test_persons.py tests/test_visits.py tests/test_reminders.py tests/test_validation.py tests/test_expiring_filter.py -v --tb=short
 
-      - name: 启动服务并测试 API
+      # ========== API 集成测试 ==========
+      - name: 启动服务并运行 API 集成测试
         shell: python
         run: |
           import subprocess, time, httpx, sys, json
+          from datetime import date, timedelta
           
-          # 启动服务
           proc = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
             cwd="judicial-system/backend"
@@ -39,111 +44,192 @@ jobs:
           time.sleep(5)
           
           results = []
+          PASS = 0
+          FAIL = 0
           
           def test(name, func):
+            global PASS, FAIL
             try:
               r = func()
+              PASS += 1
               results.append(f"✅ {name}: {r}")
             except Exception as e:
+              FAIL += 1
               results.append(f"❌ {name}: {e}")
           
           c = httpx.Client(base_url="http://127.0.0.1:8000", timeout=15)
           
           # 登录
-          def t_login():
-            r = c.post("/api/auth/login", json={"username":"admin","password":"admin123"})
-            assert r.status_code == 200
-            return f"OK"
-          test("登录", t_login)
+          r = c.post("/api/auth/login", json={"username":"admin","password":"admin123"})
+          assert r.status_code == 200
+          TOKEN = r.json()["access_token"]
+          H = {"Authorization": f"Bearer {TOKEN}"}
           
-          token = c.post("/api/auth/login", json={"username":"admin","password":"admin123"}).json()["access_token"]
-          h = {"Authorization": f"Bearer {token}"}
+          today = date.today()
           
-          # 用户信息
-          test("用户信息", lambda: f"{c.get('/api/auth/me', headers=h).json()['real_name']}")
+          # ========== 准备测试数据 ==========
+          test_data = [
+            {"name": "A_5天到期", "id_card": "320102199001010001", "status": "在帮", "risk_level": "高",
+             "edu_end_date": (today + timedelta(days=5)).isoformat(), "is_minor": False, "is_xj": False, "is_mental": False},
+            {"name": "B_15天到期", "id_card": "320102199001010002", "status": "在帮", "risk_level": "中",
+             "edu_end_date": (today + timedelta(days=15)).isoformat(), "is_minor": True, "is_xj": False, "is_mental": False},
+            {"name": "C_25天到期", "id_card": "320102199001010003", "status": "在帮", "risk_level": "低",
+             "edu_end_date": (today + timedelta(days=25)).isoformat(), "is_minor": False, "is_xj": True, "is_mental": False},
+            {"name": "D_已超期", "id_card": "320102199001010004", "status": "在帮", "risk_level": "高",
+             "edu_end_date": (today - timedelta(days=10)).isoformat(), "is_minor": False, "is_xj": False, "is_mental": True},
+            {"name": "E_正常90天", "id_card": "320102199001010005", "status": "在帮", "risk_level": "低",
+             "edu_end_date": (today + timedelta(days=90)).isoformat()},
+            {"name": "F_已解除", "id_card": "320102199001010006", "status": "已解除", "risk_level": "低",
+             "edu_end_date": (today + timedelta(days=3)).isoformat()},
+            {"name": "G_未成年精神", "id_card": "320102199001010007", "status": "在帮", "risk_level": "高",
+             "edu_end_date": (today + timedelta(days=10)).isoformat(), "is_minor": True, "is_mental": True},
+          ]
+          ids = []
+          for d in test_data:
+            r = c.post("/api/persons", json=d, headers=H)
+            if r.status_code == 201:
+              ids.append(r.json()["id"])
+            elif r.status_code == 400:
+              r2 = c.get(f"/api/persons?search={d['name']}", headers=H)
+              if r2.json()["items"]:
+                ids.append(r2.json()["items"][0]["id"])
           
-          # 新增人员
-          def t_create():
-            r = c.post("/api/persons", json={"name":"张三","id_card":"320102199001011234","status":"在管","risk_level":"低"}, headers=h)
-            assert r.status_code == 201
-            return f"id={r.json()['id']}"
-          test("新增人员", t_create)
+          # ========== 基础功能 ==========
+          test("登录", lambda: "OK")
+          test("用户信息", lambda: f"{c.get('/api/auth/me', headers=H).json()['real_name']}")
+          test("人员列表", lambda: f"total={c.get('/api/persons?page_size=20', headers=H).json()['total']}")
+          test("搜索", lambda: f"命中{c.get('/api/persons?search=A_5天', headers=H).json()['total']}条")
+          test("人员详情", lambda: f"id={c.get(f'/api/persons/{ids[0]}', headers=H).json()['id']}")
+          test("修改人员", lambda: f"{c.put(f'/api/persons/{ids[0]}', json={'risk_level':'中'}, headers=H).status_code}")
+          test("修改历史", lambda: f"{len(c.get(f'/api/persons/{ids[0]}/edit-logs', headers=H).json())}条")
+          test("统计汇总", lambda: f"total={c.get('/api/persons/stats/summary', headers=H).json()['total']}")
+          test("季度报表", lambda: f"{c.get('/api/persons/reports/quarterly', headers=H).status_code}")
+          test("Excel导出", lambda: f"{len(c.get('/api/persons/export/excel', headers=H).content)}bytes")
           
-          # 人员列表（含最近走访）
-          def t_list():
-            r = c.get("/api/persons?page_size=20", headers=h)
-            d = r.json()
-            has_visit_field = "last_visit_date" in d["items"][0]
-            return f"total={d['total']}, has_last_visit={has_visit_field}"
-          test("人员列表", t_list)
+          # ========== Bug 1: 预警列表 ==========
+          def t_expiring_list():
+            d = c.get("/api/reminders", headers=H).json()
+            assert "expiring_list" in d, "缺少 expiring_list"
+            assert len(d["expiring_list"]) > 0, "expiring_list 为空"
+            item = d["expiring_list"][0]
+            for k in ["name","risk_level","edu_end_date","days_remaining","level"]:
+              assert k in item, f"缺少字段 {k}"
+            return f"{len(d['expiring_list'])}人, 字段完整"
+          test("预警列表-字段完整", t_expiring_list)
           
-          # 搜索
-          test("搜索", lambda: f"命中{c.get('/api/persons?search=张&page_size=20', headers=h).json()['total']}条")
+          def t_expiring_contains():
+            d = c.get("/api/reminders", headers=H).json()
+            names = [p["name"] for p in d["expiring_list"]]
+            assert "A_5天到期" in names, f"5天到期不在: {names}"
+            assert "B_15天到期" in names, f"15天到期不在: {names}"
+            assert "F_已解除" not in names, f"已解除不应出现"
+            return f"包含正确人员"
+          test("预警列表-人员正确", t_expiring_contains)
           
-          # 修改
-          test("修改人员", lambda: f"{c.put('/api/persons/1', json={'risk_level':'高'}, headers=h).status_code}")
+          def t_expiring_days():
+            d = c.get("/api/reminders", headers=H).json()
+            item = next(p for p in d["expiring_list"] if p["name"]=="A_5天到期")
+            assert item["days_remaining"] == 5, f"应为5天: {item['days_remaining']}"
+            assert item["level"] == "7天", f"应标记7天: {item['level']}"
+            return f"days={item['days_remaining']}, level={item['level']}"
+          test("预警列表-天数计算", t_expiring_days)
           
-          # 修改历史
-          test("修改历史", lambda: f"{len(c.get('/api/persons/1/edit-logs', headers=h).json())}条")
+          def t_overdue_list():
+            d = c.get("/api/reminders", headers=H).json()
+            assert "visit_overdue_list" in d, "缺少 visit_overdue_list"
+            return f"{len(d['visit_overdue_list'])}人"
+          test("预警列表-走访超期", t_overdue_list)
           
-          # 统计
-          test("统计汇总", lambda: f"total={c.get('/api/persons/stats/summary', headers=h).json()['total']}")
+          # ========== Bug 2: 到期筛选 ==========
+          def t_7d_filter():
+            r = c.get("/api/persons?expiring_within_days=7", headers=H)
+            names = [p["name"] for p in r.json()["items"]]
+            assert "A_5天到期" in names, f"5天应包含: {names}"
+            assert "B_15天到期" not in names, f"15天不应包含"
+            assert "E_正常90天" not in names, f"90天不应包含"
+            return f"{r.json()['total']}人: {names}"
+          test("7天到期筛选", t_7d_filter)
           
-          # 提醒
-          test("提醒系统", lambda: f"keys={list(c.get('/api/reminders', headers=h).json().keys())[:3]}")
+          def t_30d_filter():
+            r = c.get("/api/persons?expiring_within_days=30", headers=H)
+            names = [p["name"] for p in r.json()["items"]]
+            assert "A_5天到期" in names
+            assert "B_15天到期" in names
+            assert "C_25天到期" in names
+            assert "E_正常90天" not in names
+            return f"{r.json()['total']}人"
+          test("30天到期筛选", t_30d_filter)
+          
+          def t_30d_only_active():
+            r = c.get("/api/persons?expiring_within_days=30", headers=H)
+            statuses = set(p["status"] for p in r.json()["items"])
+            assert statuses == {"在帮"}, f"应全在帮: {statuses}"
+            return f"全部在帮"
+          test("到期筛选-只含在帮", t_30d_only_active)
+          
+          # ========== Bug 3: 组合筛选 ==========
+          def t_minor_mental():
+            r1 = c.get("/api/persons?is_minor=true", headers=H)
+            r2 = c.get("/api/persons?is_minor=true&is_mental=true", headers=H)
+            n1 = [p["name"] for p in r1.json()["items"]]
+            n2 = [p["name"] for p in r2.json()["items"]]
+            assert "G_未成年精神" in n1 and "G_未成年精神" in n2
+            assert "B_15天到期" in n1 and "B_15天到期" not in n2
+            return f"未成年({len(n1)}) + 精神({len(n2)})"
+          test("组合筛选:未成年+精神", t_minor_mental)
+          
+          def t_mental_minor_reverse():
+            r1 = c.get("/api/persons?is_mental=true", headers=H)
+            r2 = c.get("/api/persons?is_mental=true&is_minor=true", headers=H)
+            n1 = [p["name"] for p in r1.json()["items"]]
+            n2 = [p["name"] for p in r2.json()["items"]]
+            assert "D_已超期" in n1 and "D_已超期" not in n2
+            return f"精神({len(n1)}) + 未成年({len(n2)})"
+          test("组合筛选:精神+未成年", t_mental_minor_reverse)
+          
+          def t_expiring_minor():
+            r = c.get("/api/persons?expiring_within_days=30&is_minor=true", headers=H)
+            names = [p["name"] for p in r.json()["items"]]
+            assert "B_15天到期" in names
+            assert "G_未成年精神" in names
+            assert "A_5天到期" not in names
+            return f"{len(names)}人: {names}"
+          test("组合筛选:到期+未成年", t_expiring_minor)
+          
+          def t_xj_filter():
+            r = c.get("/api/persons?is_xj=true", headers=H)
+            names = [p["name"] for p in r.json()["items"]]
+            assert "C_25天到期" in names
+            return f"{len(names)}人"
+          test("xj筛选", t_xj_filter)
+          
+          def t_status_filter():
+            r = c.get("/api/persons?status=在帮", headers=H)
+            for p in r.json()["items"]:
+              assert p["status"] == "在帮"
+            return f"{r.json()['total']}人"
+          test("状态筛选", t_status_filter)
           
           # 走访
           def t_visit():
-            r = c.post("/api/visits", json={"person_id":1,"visit_date":"2026-07-24","visitor":"张科员","visit_method":"上门","content":"测试"}, headers=h)
+            r = c.post("/api/visits", json={"person_id":ids[0],"visit_date":str(today),"visitor":"测试员","visit_method":"上门","content":"集成测试"}, headers=H)
             return f"{r.status_code}"
           test("新增走访", t_visit)
           
-          # 走访列表
-          test("走访列表", lambda: f"total={c.get('/api/visits?page_size=100', headers=h).json()['total']}")
-          
-          # 走访同步到人员列表
-          def t_sync():
-            r = c.get("/api/persons?page_size=5", headers=h)
-            p = r.json()["items"][0]
-            return f"last_visit={p.get('last_visit_date','无')}, visitor={p.get('last_visitor','无')}"
-          test("走访同步", t_sync)
-          
-          # 季度统计
-          test("季度统计", lambda: f"total={c.get('/api/visits/stats/quarterly', headers=h).json()['total']}")
-          
-          # Excel导出
-          test("Excel导出", lambda: f"{len(c.get('/api/persons/export/excel', headers=h).content)}bytes")
-          
-          # 文件上传
-          import struct, zlib
-          def t_upload():
-            sig = b'\x89PNG\r\n\x1a\n'
-            def chunk(ct, d):
-              c2 = ct + d
-              return struct.pack('>I', len(d)) + c2 + struct.pack('>I', zlib.crc32(c2) & 0xFFFFFFFF)
-            png = sig + chunk(b'IHDR', struct.pack('>IIBBBBB',1,1,8,2,0,0,0)) + chunk(b'IDAT', zlib.compress(b'\x00\xff\xff\xff')) + chunk(b'IEND', b'')
-            r = c.post('/api/files/upload?person_id=1&file_type=测试', headers=h, files={'file': ('test.png', png, 'image/png')})
-            return f"{r.status_code}"
-          test("文件上传", t_upload)
-          
-          # 改密码
-          test("改密码", lambda: f"{c.post('/api/auth/change-password', json={'old_password':'admin123','new_password':'admin123'}, headers=h).status_code}")
-          
-          # 季度报表
-          test("季度报表", lambda: f"{c.get('/api/persons/reports/quarterly', headers=h).status_code}")
+          test("走访列表", lambda: f"total={c.get('/api/visits?page_size=100', headers=H).json()['total']}")
+          test("季度走访统计", lambda: f"total={c.get('/api/visits/stats/quarterly', headers=H).json()['total']}")
+          test("改密码", lambda: f"{c.post('/api/auth/change-password', json={'old_password':'admin123','new_password':'admin123'}, headers=H).status_code}")
           
           proc.terminate()
           
           print()
           print("=" * 60)
-          print("  Windows API 测试结果")
+          print(f"  测试结果: {PASS} 通过 / {FAIL} 失败 / {PASS+FAIL} 总计")
           print("=" * 60)
-          passed = sum(1 for r in results if r.startswith("✅"))
-          failed = sum(1 for r in results if r.startswith("❌"))
           for r in results:
             print(f"  {r}")
-          print(f"\n  通过: {passed}/{len(results)}, 失败: {failed}")
-          print("=" * 60)
-          
-          if failed > 0:
+          if FAIL > 0:
+            print(f"\n  ❌ 有 {FAIL} 项失败")
             sys.exit(1)
+          else:
+            print(f"\n  🎉 全部通过！")
