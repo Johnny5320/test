@@ -56,6 +56,8 @@ class Person(SQLModel, table=True):
     is_xj: Optional[bool] = Field(default=False)           # 是否xj
     is_mental: Optional[bool] = Field(default=False)       # 是否精神疾病
     visit_interval_days: int = Field(default=90)
+    risk_score: Optional[int] = Field(default=0)           # 风险评分(0-100)
+    last_visit_date: Optional[date] = Field(default=None)  # 最后走访日期(冗余)
     responsible_org: Optional[str] = Field(default=None, max_length=100)
     photo_path: Optional[str] = Field(default=None, max_length=500)
     notes: Optional[str] = Field(default=None, max_length=2000)

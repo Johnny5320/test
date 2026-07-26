@@ -786,7 +786,15 @@ createApp({
     const submitLoading=ref(false);
     const formRef=ref(null);
     const personForm=reactive({name:'',id_card:'',gender:'',birth_date:'',household_province:'',household_city:'',household_district:'',household_town:'',household_addr:'',current_addr:'',village:'',phone:'',original_crime:'',original_sentence:'',prison_place:'',sentence_start_date:'',release_date:'',edu_start_date:'',edu_end_date:'',responsible_person:'',status:'在帮',risk_level:'低',is_key_target:false,is_minor:false,is_xj:false,is_mental:false,category:'',marital_status:'',education_level:'',employment:'',health_status:'',economic_status:'',family_name:'',family_phone:'',notes:''});
-    const formRules={name:[{required:true,message:'请输入姓名',trigger:'blur'}],id_card:[{required:true,message:'请输入身份证号',trigger:'blur'}]};
+    const formRules={
+      name:[{required:true,message:'请输入姓名',trigger:'blur'},{max:20,message:'姓名不能超过20字',trigger:'blur'}],
+      id_card:[
+        {required:true,message:'请输入身份证号',trigger:'blur'},
+        {pattern:/^\d{17}[\dXx]$/,message:'身份证号必须是18位',trigger:'blur'}
+      ],
+      status:[{required:true,message:'请选择状态',trigger:'change'}],
+      risk_level:[{required:true,message:'请选择风险等级',trigger:'change'}],
+    };
     const fieldLabelMap={name:'姓名',id_card:'身份证号',gender:'性别',phone:'电话',status:'状态',risk_level:'风险等级',current_addr:'现住址',responsible_person:'责任人',notes:'备注',household_province:'户籍省',household_city:'户籍市',household_district:'户籍县',household_town:'户籍乡镇',village:'所属村委',prison_place:'服刑场所',is_key_target:'重点对象',is_minor:'是否成年',is_xj:'是否xj',is_mental:'精神疾病',category:'类别',sentence_start_date:'服刑始日'};
 
     const prisonList=ref([]);
@@ -861,7 +869,32 @@ createApp({
     function riskPct(level){const t=statsData.risk_high+statsData.risk_mid+statsData.risk_low;if(!t)return'0%';const m={'高':statsData.risk_high,'中':statsData.risk_mid,'低':statsData.risk_low};return Math.round((m[level]/t)*100)+'%';}
     function deadlineStyle(ds){if(!ds)return{};const d=(new Date(ds)-new Date())/(864e5);if(d<0)return{color:'#ff4d4f',fontWeight:'bold'};if(d<90)return{color:'#faad14'};return{};}
 
-    function parseIdCard(){const id=personForm.id_card;if(id&&id.length===18){if(!personForm.gender)personForm.gender=parseInt(id[16])%2===1?'男':'女';if(!personForm.birth_date)personForm.birth_date=`${id.substring(6,10)}-${id.substring(10,12)}-${id.substring(12,14)}`;}}
+    // 行政区划数据
+    let regionsData=null;
+    async function loadRegions(){try{const r=await fetch('data/regions.json');regionsData=await r.json();}catch{regionsData=null;}}
+    onMounted(()=>{loadRegions();});
+
+    function parseIdCard(){
+      const id=personForm.id_card;
+      if(!id||id.length!==18)return;
+      if(!personForm.gender)personForm.gender=parseInt(id[16])%2===1?'男':'女';
+      if(!personForm.birth_date)personForm.birth_date=`${id.substring(6,10)}-${id.substring(10,12)}-${id.substring(12,14)}`;
+      // 自动填充行政区划
+      if(regionsData){
+        const code=id.substring(0,6);
+        const provCode=code.substring(0,2)+'0000';
+        const cityCode=code.substring(0,4)+'00';
+        const prov=regionsData[provCode];
+        if(prov){
+          if(!personForm.household_province)personForm.household_province=prov.name;
+          const city=prov.cities[cityCode];
+          if(city){
+            if(!personForm.household_city)personForm.household_city=city.name;
+            if(!personForm.household_district)personForm.household_district=code;
+          }
+        }
+      }
+    }
     function resetForm(){Object.assign(personForm,{name:'',id_card:'',gender:'',birth_date:'',household_province:'',household_city:'',household_district:'',household_town:'',household_addr:'',current_addr:'',village:'',phone:'',original_crime:'',original_sentence:'',prison_place:'',sentence_start_date:'',release_date:'',edu_start_date:'',edu_end_date:'',responsible_person:'',status:'在帮',risk_level:'低',is_key_target:false,is_minor:false,is_xj:false,is_mental:false,category:'',marital_status:'',education_level:'',employment:'',health_status:'',economic_status:'',family_name:'',family_phone:'',notes:''});editId.value=null;formTab.value='basic';}
     function editPerson(row){resetForm();Object.keys(personForm).forEach(k=>{if(row[k]!==undefined&&row[k]!==null)personForm[k]=row[k];});editId.value=row.id;showAddDialog.value=true;}
 
