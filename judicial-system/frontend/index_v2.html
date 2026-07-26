@@ -59,7 +59,13 @@
     .empty-state .text{color:#999;font-size:14px}
     .prison-expand{margin-top:12px;padding:12px;background:#fafafa;border-radius:6px}
     .prison-person{display:inline-block;padding:2px 8px;margin:2px;background:#e6f7e6;border-radius:4px;font-size:12px}
+    /* 滚动性能优化 */
+    .el-table{will-change:transform}
+    .el-table__body-wrapper{will-change:scroll-position;-webkit-overflow-scrolling:touch}
+    .el-table__row{contain:layout style}
+    .el-table__fixed,.el-table__fixed-right{will-change:transform}
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 </head>
 <body>
 <div id="app">
@@ -151,7 +157,7 @@
                 <div class="num" style="color:#eb2f96">{{ statsData.total_minor || 0 }}</div>
                 <div class="label">未成年</div>
               </div>
-              <div class="stat-card" style="cursor:pointer" @click="currentView='ledger';filterStatus='';filterRisk='';filterIsMinor='';filterIsXj='true';filterIsMental='';filterPrisonPlace='';filterVillage='';fetchPersons()">
+              <div class="stat-card" style="cursor:pointer" @click="fromDashboard=true;currentView='ledger';filterStatus='';filterRisk='';filterIsMinor='';filterIsXj='true';filterIsMental='';filterPrisonPlace='';filterVillage='';filterExpiringDays=0;fetchPersons()">
                 <div class="num" style="color:#fa8c16">{{ statsData.total_xj || 0 }}</div>
                 <div class="label">xj</div>
               </div>
@@ -169,7 +175,7 @@
               <div style="display:flex;gap:12px;flex-wrap:wrap">
                 <div v-for="p in (statsData.prison_distribution||[])" :key="p.name"
                      style="padding:8px 16px;background:#f0f5ff;border-radius:6px;cursor:pointer"
-                     @click="currentView='ledger';filterStatus='';filterRisk='';filterIsMinor='';filterIsXj='';filterIsMental='';filterPrisonPlace=p.name;filterVillage='';fetchPersons()">
+                     @click="fromDashboard=true;currentView='ledger';filterStatus='';filterRisk='';filterIsMinor='';filterIsXj='';filterIsMental='';filterPrisonPlace=p.name;filterVillage='';filterExpiringDays=0;fetchPersons()">
                   <span style="font-weight:bold;color:#1890ff">{{ p.name }}</span>
                   <span style="color:#999;margin-left:4px">{{ p.count }}人</span>
                 </div>
@@ -203,7 +209,7 @@
                 <div style="display:flex;gap:12px;flex-wrap:wrap">
                   <div v-for="v in (statsData.village_distribution||[])" :key="v.name"
                        style="padding:6px 12px;background:#f6ffed;border-radius:4px;font-size:13px;cursor:pointer"
-                       @click="currentView='ledger';filterStatus='';filterRisk='';filterIsMinor='';filterIsXj='';filterIsMental='';filterPrisonPlace='';filterVillage=v.name;fetchPersons()">
+                       @click="fromDashboard=true;currentView='ledger';filterStatus='';filterRisk='';filterIsMinor='';filterIsXj='';filterIsMental='';filterPrisonPlace='';filterVillage=v.name;filterExpiringDays=0;fetchPersons()">
                     <span style="font-weight:bold;color:#52c41a">{{ v.name }}</span>
                     <span style="color:#999;margin-left:4px">{{ v.count }}人</span>
                   </div>
@@ -247,11 +253,11 @@
             <div style="background:#fff;border-radius:8px;padding:16px;margin-bottom:20px">
               <div style="font-size:14px;color:#333;margin-bottom:12px;font-weight:bold">📋 待办事项</div>
               <div style="display:flex;gap:16px;flex-wrap:wrap">
-                <div v-if="reminders.expiring_7d>0" style="padding:10px 16px;background:#fff1f0;border-radius:6px;cursor:pointer;min-width:160px" @click="currentView='ledger';fetchExpiringList()">
+                <div v-if="reminders.expiring_7d>0" style="padding:10px 16px;background:#fff1f0;border-radius:6px;cursor:pointer;min-width:160px" @click="fromDashboard=true;currentView='ledger';fetchExpiringList(7)">
                   <div style="font-size:20px;font-weight:bold;color:#ff4d4f">{{ reminders.expiring_7d }}</div>
                   <div style="font-size:12px;color:#999">7天内到期</div>
                 </div>
-                <div v-if="reminders.expiring_30d>0" style="padding:10px 16px;background:#fff7e6;border-radius:6px;cursor:pointer;min-width:160px" @click="currentView='ledger';fetchExpiringList()">
+                <div v-if="reminders.expiring_30d>0" style="padding:10px 16px;background:#fff7e6;border-radius:6px;cursor:pointer;min-width:160px" @click="fromDashboard=true;currentView='ledger';fetchExpiringList(30)">
                   <div style="font-size:20px;font-weight:bold;color:#faad14">{{ reminders.expiring_30d }}</div>
                   <div style="font-size:12px;color:#999">30天内到期</div>
                 </div>
@@ -259,11 +265,42 @@
                   <div style="font-size:20px;font-weight:bold;color:#faad14">{{ reminders.visit_overdue }}</div>
                   <div style="font-size:12px;color:#999">超期未走访</div>
                 </div>
-                <div style="padding:10px 16px;background:#f0f5ff;border-radius:6px;min-width:160px;cursor:pointer" @click="currentView='ledger';filterStatus='在帮';filterRisk='';filterIsMinor='';filterIsXj='';filterIsMental='';filterPrisonPlace='';filterVillage='';fetchPersons()">
+                <div style="padding:10px 16px;background:#f0f5ff;border-radius:6px;min-width:160px;cursor:pointer" @click="fromDashboard=true;currentView='ledger';filterStatus='在帮';filterRisk='';filterIsMinor='';filterIsXj='';filterIsMental='';filterPrisonPlace='';filterVillage='';filterExpiringDays=0;fetchPersons()">
                   <div style="font-size:20px;font-weight:bold;color:#409eff">{{ reminders.quarter_deadline_days }}</div>
                   <div style="font-size:12px;color:#999">距季度归档截止</div>
                 </div>
               </div>
+            </div>
+            <!-- 预警详情：即将到期人员 -->
+            <div v-if="reminders.expiring_list && reminders.expiring_list.length>0" style="background:#fff;border-radius:8px;padding:16px;margin-bottom:20px">
+              <div style="font-size:14px;color:#333;margin-bottom:12px;font-weight:bold">⏰ 即将到期人员（{{ reminders.expiring_list.length }}人）</div>
+              <el-table :data="reminders.expiring_list" stripe size="small" max-height="300">
+                <el-table-column prop="name" label="姓名" width="80" />
+                <el-table-column prop="risk_level" label="风险" width="60" align="center">
+                  <template #default="s"><el-tag :type="s.row.risk_level==='高'?'danger':s.row.risk_level==='中'?'warning':'success'" size="small">{{ s.row.risk_level }}</el-tag></template>
+                </el-table-column>
+                <el-table-column prop="edu_end_date" label="截止日期" width="110" />
+                <el-table-column prop="days_remaining" label="剩余天数" width="90" align="center">
+                  <template #default="s"><span :style="{color:s.row.days_remaining<=7?'#ff4d4f':'#faad14',fontWeight:'bold'}">{{ s.row.days_remaining }}天</span></template>
+                </el-table-column>
+                <el-table-column prop="level" label="级别" width="70" align="center">
+                  <template #default="s"><el-tag :type="s.row.level==='7天'?'danger':'warning'" size="small">{{ s.row.level }}</el-tag></template>
+                </el-table-column>
+              </el-table>
+            </div>
+            <!-- 预警详情：超期未走访人员 -->
+            <div v-if="reminders.visit_overdue_list && reminders.visit_overdue_list.length>0" style="background:#fff;border-radius:8px;padding:16px;margin-bottom:20px">
+              <div style="font-size:14px;color:#333;margin-bottom:12px;font-weight:bold">⚠️ 超期未走访人员（{{ reminders.visit_overdue_list.length }}人）</div>
+              <el-table :data="reminders.visit_overdue_list" stripe size="small" max-height="300">
+                <el-table-column prop="name" label="姓名" width="80" />
+                <el-table-column prop="risk_level" label="风险" width="60" align="center">
+                  <template #default="s"><el-tag :type="s.row.risk_level==='高'?'danger':s.row.risk_level==='中'?'warning':'success'" size="small">{{ s.row.risk_level }}</el-tag></template>
+                </el-table-column>
+                <el-table-column prop="last_visit_date" label="上次走访" width="110"><template #default="s">{{ s.row.last_visit_date||'从未走访' }}</template></el-table-column>
+                <el-table-column prop="days_since_visit" label="距今(天)" width="80" align="center"><template #default="s"><span style="color:#ff4d4f;font-weight:bold">{{ s.row.days_since_visit }}</span></template></el-table-column>
+                <el-table-column prop="visit_interval_days" label="应间隔(天)" width="90" align="center" />
+                <el-table-column prop="overdue_days" label="超期(天)" width="80" align="center"><template #default="s"><span style="color:#ff4d4f;font-weight:bold">+{{ s.row.overdue_days }}</span></template></el-table-column>
+              </el-table>
             </div>
           </template>
 
@@ -386,6 +423,27 @@
               </div>
               <div style="margin-top:12px;font-size:14px;color:#666">
                 走访完成率：<span style="font-size:20px;font-weight:bold;color:#52c41a">{{ quarterlyReport.visits.completion_rate||0 }}%</span>
+              </div>
+            </div>
+            <!-- ECharts 图表区域 -->
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+              <div style="flex:1;min-width:300px;background:#fff;border-radius:8px;padding:16px">
+                <div style="font-size:14px;font-weight:bold;color:#333;margin-bottom:12px">📊 人员状态分布</div>
+                <div ref="statusChartRef" style="width:100%;height:300px"></div>
+              </div>
+              <div style="flex:1;min-width:300px;background:#fff;border-radius:8px;padding:16px">
+                <div style="font-size:14px;font-weight:bold;color:#333;margin-bottom:12px">📊 风险等级分布</div>
+                <div ref="riskChartRef" style="width:100%;height:300px"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+              <div style="flex:1;min-width:300px;background:#fff;border-radius:8px;padding:16px">
+                <div style="font-size:14px;font-weight:bold;color:#333;margin-bottom:12px">📊 村/居人员分布</div>
+                <div ref="villageChartRef" style="width:100%;height:300px"></div>
+              </div>
+              <div style="flex:1;min-width:300px;background:#fff;border-radius:8px;padding:16px">
+                <div style="font-size:14px;font-weight:bold;color:#333;margin-bottom:12px">📊 责任人分布</div>
+                <div ref="responsibleChartRef" style="width:100%;height:300px"></div>
               </div>
             </div>
           </template>
@@ -604,9 +662,11 @@ createApp({
       try{const r=await api(`/api/persons/prisons/${encodeURIComponent(name)}/persons`);prisonPersons[name]=r;}catch{prisonPersons[name]=[];}
     }
 
-    const reminders=reactive({expiring_30d:0,expiring_7d:0,overdue_expired:0,visit_overdue:0,quarter_deadline_days:0,quarter_deadline_date:''});
+    const reminders=reactive({expiring_30d:0,expiring_7d:0,overdue_expired:0,visit_overdue:0,quarter_deadline_days:0,quarter_deadline_date:'',expiring_list:[],visit_overdue_list:[]});
     async function fetchReminders(){try{Object.assign(reminders,await api('/api/reminders'));}catch{}}
-    function fetchExpiringList(){filterStatus.value='在帮';filterRisk.value='';filterIsMinor.value='';filterIsXj.value='';filterIsMental.value='';filterPrisonPlace.value='';filterVillage.value='';currentPage.value=1;fetchPersons();}
+    const filterExpiringDays=ref(0);
+    const fromDashboard=ref(false);
+    function fetchExpiringList(days){searchText.value='';filterStatus.value='';filterRisk.value='';filterIsMinor.value='';filterIsXj.value='';filterIsMental.value='';filterPrisonPlace.value='';filterVillage.value='';filterExpiringDays.value=days||30;currentPage.value=1;fetchPersons();}
 
     const persons=ref({items:[],total:0,page:1,page_size:20,pages:0});
     const searchText=ref('');
@@ -643,6 +703,22 @@ createApp({
     function filterHistory(){if(!historySearch.value){filteredHistory.value=allEditLogs.value;return;}const q=historySearch.value.toLowerCase();filteredHistory.value=allEditLogs.value.filter(l=>getPersonName(l.record_id).toLowerCase().includes(q));}
 
     const visitStats=reactive({total:0,'上门':0,'电话':0,'视频':0,'有异常':0});
+
+    // ECharts 图表
+    const statusChartRef=ref(null);
+    const riskChartRef=ref(null);
+    const villageChartRef=ref(null);
+    const responsibleChartRef=ref(null);
+    let statusChart=null,riskChart=null,villageChart=null,responsibleChart=null;
+    function initCharts(){
+      if(typeof echarts==='undefined')return;
+      if(statusChartRef.value){if(statusChart)statusChart.dispose();statusChart=echarts.init(statusChartRef.value);statusChart.setOption({tooltip:{trigger:'item',formatter:'{b}: {c}人 ({d}%)'},legend:{bottom:0},series:[{type:'pie',radius:['40%','65%'],center:['50%','45%'],label:{formatter:'{b}\n{c}人'},data:[{value:statsData['在帮'],name:'在帮',itemStyle:{color:'#52c41a'}},{value:statsData['已解除'],name:'已解除',itemStyle:{color:'#1890ff'}},{value:statsData['脱管'],name:'脱管',itemStyle:{color:'#faad14'}},{value:statsData['重点关注'],name:'重点关注',itemStyle:{color:'#ff4d4f'}}]}]});}
+      if(riskChartRef.value){if(riskChart)riskChart.dispose();riskChart=echarts.init(riskChartRef.value);riskChart.setOption({tooltip:{trigger:'item',formatter:'{b}: {c}人 ({d}%)'},legend:{bottom:0},series:[{type:'pie',radius:['40%','65%'],center:['50%','45%'],label:{formatter:'{b}\n{c}人'},data:[{value:statsData.risk_high,name:'高风险',itemStyle:{color:'#ff4d4f'}},{value:statsData.risk_mid,name:'中风险',itemStyle:{color:'#faad14'}},{value:statsData.risk_low,name:'低风险',itemStyle:{color:'#52c41a'}}]}]});}
+      if(villageChartRef.value&&statsData.village_distribution.length>0){if(villageChart)villageChart.dispose();villageChart=echarts.init(villageChartRef.value);const d=statsData.village_distribution.slice(0,15);villageChart.setOption({tooltip:{trigger:'axis'},xAxis:{type:'category',data:d.map(v=>v.name),axisLabel:{rotate:30,fontSize:11}},yAxis:{type:'value'},series:[{type:'bar',data:d.map(v=>v.count),itemStyle:{color:'#409eff',borderRadius:[4,4,0,0]},barMaxWidth:30}]});}
+      if(responsibleChartRef.value&&statsData.responsible_distribution.length>0){if(responsibleChart)responsibleChart.dispose();responsibleChart=echarts.init(responsibleChartRef.value);const d=statsData.responsible_distribution.slice(0,15);responsibleChart.setOption({tooltip:{trigger:'axis'},xAxis:{type:'category',data:d.map(r=>r.name),axisLabel:{rotate:30,fontSize:11}},yAxis:{type:'value'},series:[{type:'bar',data:d.map(r=>r.count),itemStyle:{color:'#722ed1',borderRadius:[4,4,0,0]},barMaxWidth:30}]});}
+    }
+    function handleChartResize(){statusChart?.resize();riskChart?.resize();villageChart?.resize();responsibleChart?.resize();}
+
     const quarterlyReport=reactive({year:0,quarter:0,period:'',existing_at_start:0,new_this_quarter:0,current_total:0,active_count:0,visits:{total:0,'上门':0,'电话':0,'视频':0,abnormal:0,completion_rate:0}});
     async function fetchQuarterlyReport(){try{Object.assign(quarterlyReport,await api('/api/persons/reports/quarterly'));}catch{}}
 
@@ -696,6 +772,7 @@ createApp({
       if(filterIsMental.value)params.set('is_mental','true');
       if(filterPrisonPlace.value)params.set('prison_place',filterPrisonPlace.value);
       if(filterVillage.value)params.set('village',filterVillage.value);
+      if(filterExpiringDays.value>0)params.set('expiring_within_days',filterExpiringDays.value);
       if(revealId.value)params.set('reveal','true');
       persons.value=await api(`/api/persons?${params}`);
       tableLoading.value=false;
@@ -714,10 +791,10 @@ createApp({
 
     function onMenuChange(key){
       if(key==='dashboard'){fetchStats();fetchVisitStats();fetchPrisonList();}
-      if(key==='ledger'){filterPrisonPlace.value='';filterVillage.value='';fetchPersons();}
+      if(key==='ledger'){if(!fromDashboard.value){filterPrisonPlace.value='';filterVillage.value='';filterExpiringDays.value=0;}fromDashboard.value=false;fetchPersons();}
       if(key==='visits'){fetchAllVisits();fetchVisitStats();}
       if(key==='history'){fetchAllEditLogs();}
-      if(key==='stats'){fetchStats();fetchQuarterlyReport();}
+      if(key==='stats'){fetchStats();fetchQuarterlyReport();setTimeout(initCharts,300);}
     }
 
     function getPersonName(id){const p=persons.value.items?.find(x=>x.id===id);return p?p.name:`#${id}`;}
@@ -780,13 +857,13 @@ createApp({
     }
     async function deleteVisit(v){await api(`/api/visits/${v.id}`,{method:'DELETE'});ElMessage.success('已删除');visitList.value=(await api(`/api/visits?person_id=${drawerPerson.value.id}&page_size=100`)).items||[];}
 
-    onMounted(async()=>{await fetchStats();await fetchVisitStats();await fetchReminders();await fetchPrisonList();});
+    onMounted(async()=>{await fetchStats();await fetchVisitStats();await fetchReminders();await fetchPrisonList();window.addEventListener('resize',handleChartResize);});
 
     return{
       operatorName,operatorNameInput,showOperatorDialog,setOperator,
       menuItems,currentView,currentMenuLabel,onMenuChange,
       statsData,riskBarWidth,riskPct,prisonExpanded,prisonPersons,togglePrisonDetail,
-      reminders,fetchReminders,fetchExpiringList,
+      reminders,fetchReminders,fetchExpiringList,fromDashboard,filterExpiringDays,
       persons,searchText,filterStatus,filterRisk,filterIsMinor,filterIsXj,filterIsMental,filterPrisonPlace,filterVillage,showAdvancedFilter,revealId,currentPage,tableLoading,
       drawerVisible,drawerPerson,drawerTab,visitList,editLogs,onDrawerTabChange,openDrawer,
       showVisitDialog,editVisitId,visitLoading,visitForm,resetVisitForm,editVisit,submitVisit,deleteVisit,
@@ -795,7 +872,7 @@ createApp({
       parseIdCard,editPerson,submitPerson,deletePerson,resetForm,handleExportExcel,
       fetchPersons,calcAge,deadlineStyle,fetchPersonsByExpiring,getPersonName,
       prisonList,showAddPrisonDialog,newPrisonName,addPrison,fetchPrisonList,
-      quarterlyReport,
+      quarterlyReport,statusChartRef,riskChartRef,villageChartRef,responsibleChartRef,
       historyLoading,
     };
   }
