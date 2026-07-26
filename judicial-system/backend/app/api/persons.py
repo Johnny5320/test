@@ -68,6 +68,7 @@ def list_persons(
     is_mental: Optional[bool] = None,
     prison_place: Optional[str] = None,
     village: Optional[str] = None,
+    expiring_within_days: Optional[int] = None,
     reveal: bool = Query(False, description="是否显示完整身份证号"),
     sort_by: str = Query("updated_at", pattern="^(name|id_card|status|risk_level|edu_end_date|created_at|updated_at)$"),
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
@@ -112,6 +113,13 @@ def list_persons(
         query = query.where(Person.prison_place == prison_place)
     if village:
         query = query.where(Person.village == village)
+
+    # 到期筛选
+    if expiring_within_days is not None:
+        today = date.today()
+        deadline = today + timedelta(days=expiring_within_days)
+        query = query.where(Person.status == "在帮")
+        query = query.where(Person.edu_end_date != None, Person.edu_end_date >= today, Person.edu_end_date <= deadline)
 
     # 总数
     count_query = select(func.count()).select_from(query.subquery())
