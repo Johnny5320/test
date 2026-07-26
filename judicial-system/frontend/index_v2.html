@@ -306,7 +306,27 @@
 
           <!-- ===== 人员台账 ===== -->
           <template v-if="currentView === 'ledger'">
-            <el-table :data="persons.items" stripe border style="width:100%" @row-click="openDrawer" v-loading="tableLoading" highlight-current-row>
+            <!-- 批量操作工具栏 -->
+            <div v-if="selectedIds.length>0" style="background:#e6f7ff;border-radius:8px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <span style="font-size:13px;color:#1890ff">已选择 <b>{{ selectedIds.length }}</b> 条</span>
+              <el-button size="small" type="danger" @click="batchDelete">批量删除</el-button>
+              <el-select v-model="batchNewStatus" placeholder="改状态" size="small" style="width:120px">
+                <el-option label="在帮" value="在帮"></el-option>
+                <el-option label="已解除" value="已解除"></el-option>
+                <el-option label="脱管" value="脱管"></el-option>
+                <el-option label="重点关注" value="重点关注"></el-option>
+              </el-select>
+              <el-button size="small" type="warning" @click="batchStatus" :disabled="!batchNewStatus">确认改状态</el-button>
+              <el-select v-model="batchNewRisk" placeholder="改风险" size="small" style="width:100px">
+                <el-option label="高" value="高"></el-option>
+                <el-option label="中" value="中"></el-option>
+                <el-option label="低" value="低"></el-option>
+              </el-select>
+              <el-button size="small" type="warning" @click="batchRisk" :disabled="!batchNewRisk">确认改风险</el-button>
+              <el-button size="small" @click="selectedIds=[]">取消选择</el-button>
+            </div>
+            <el-table :data="persons.items" stripe border style="width:100%" @row-click="openDrawer" v-loading="tableLoading" highlight-current-row @selection-change="onSelectionChange">
+              <el-table-column type="selection" width="40" align="center"></el-table-column>
               <el-table-column type="index" label="#" width="50" align="center"></el-table-column>
               <el-table-column prop="name" label="姓名" width="90" fixed></el-table-column>
               <el-table-column prop="gender" label="性别" width="60" align="center"></el-table-column>
@@ -444,6 +464,16 @@
               <div style="flex:1;min-width:300px;background:#fff;border-radius:8px;padding:16px">
                 <div style="font-size:14px;font-weight:bold;color:#333;margin-bottom:12px">📊 责任人分布</div>
                 <div ref="responsibleChartRef" style="width:100%;height:300px"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+              <div style="flex:1;min-width:400px;background:#fff;border-radius:8px;padding:16px">
+                <div style="font-size:14px;font-weight:bold;color:#333;margin-bottom:12px">📈 月度新增趋势</div>
+                <div ref="trendChartRef" style="width:100%;height:300px"></div>
+              </div>
+              <div style="flex:1;min-width:300px;background:#fff;border-radius:8px;padding:16px">
+                <div style="font-size:14px;font-weight:bold;color:#333;margin-bottom:12px">🎯 走访完成率</div>
+                <div ref="visitGaugeRef" style="width:100%;height:300px"></div>
               </div>
             </div>
           </template>
@@ -682,6 +712,23 @@ createApp({
     const currentPage=ref(1);
     const tableLoading=ref(false);
     const exportLoading=ref(false);
+    const selectedIds=ref([]);
+    const batchNewStatus=ref('');
+    const batchNewRisk=ref('');
+    function onSelectionChange(rows){selectedIds.value=rows.map(r=>r.id);}
+    async function batchDelete(){
+      if(!selectedIds.value.length)return;
+      if(!confirm(`确定删除选中的${selectedIds.value.length}条记录？`))return;
+      try{await api('/api/persons/batch/delete',{method:'POST',body:JSON.stringify({ids:selectedIds.value})});ElMessage.success('批量删除成功');selectedIds.value=[];fetchPersons();fetchStats();}catch(e){ElMessage.error(e.message);}
+    }
+    async function batchStatus(){
+      if(!selectedIds.value.length||!batchNewStatus.value)return;
+      try{await api('/api/persons/batch/status',{method:'POST',body:JSON.stringify({ids:selectedIds.value,status:batchNewStatus.value})});ElMessage.success('批量改状态成功');selectedIds.value=[];batchNewStatus.value='';fetchPersons();fetchStats();}catch(e){ElMessage.error(e.message);}
+    }
+    async function batchRisk(){
+      if(!selectedIds.value.length||!batchNewRisk.value)return;
+      try{await api('/api/persons/batch/risk',{method:'POST',body:JSON.stringify({ids:selectedIds.value,risk_level:batchNewRisk.value})});ElMessage.success('批量改风险成功');selectedIds.value=[];batchNewRisk.value='';fetchPersons();fetchStats();}catch(e){ElMessage.error(e.message);}
+    }
 
     const drawerVisible=ref(false);
     const drawerPerson=ref(null);
@@ -709,15 +756,26 @@ createApp({
     const riskChartRef=ref(null);
     const villageChartRef=ref(null);
     const responsibleChartRef=ref(null);
-    let statusChart=null,riskChart=null,villageChart=null,responsibleChart=null;
+    const trendChartRef=ref(null);
+    const visitGaugeRef=ref(null);
+    let statusChart=null,riskChart=null,villageChart=null,responsibleChart=null,trendChart=null,visitGauge=null;
+    const trendData=ref([]);
+
+    async function fetchTrend(){try{trendData.value=await api('/api/persons/stats/trend?months=6');}catch{trendData.value=[];}}
+
     function initCharts(){
       if(typeof echarts==='undefined')return;
       if(statusChartRef.value){if(statusChart)statusChart.dispose();statusChart=echarts.init(statusChartRef.value);statusChart.setOption({tooltip:{trigger:'item',formatter:'{b}: {c}人 ({d}%)'},legend:{bottom:0},series:[{type:'pie',radius:['40%','65%'],center:['50%','45%'],label:{formatter:'{b}\n{c}人'},data:[{value:statsData['在帮'],name:'在帮',itemStyle:{color:'#52c41a'}},{value:statsData['已解除'],name:'已解除',itemStyle:{color:'#1890ff'}},{value:statsData['脱管'],name:'脱管',itemStyle:{color:'#faad14'}},{value:statsData['重点关注'],name:'重点关注',itemStyle:{color:'#ff4d4f'}}]}]});}
       if(riskChartRef.value){if(riskChart)riskChart.dispose();riskChart=echarts.init(riskChartRef.value);riskChart.setOption({tooltip:{trigger:'item',formatter:'{b}: {c}人 ({d}%)'},legend:{bottom:0},series:[{type:'pie',radius:['40%','65%'],center:['50%','45%'],label:{formatter:'{b}\n{c}人'},data:[{value:statsData.risk_high,name:'高风险',itemStyle:{color:'#ff4d4f'}},{value:statsData.risk_mid,name:'中风险',itemStyle:{color:'#faad14'}},{value:statsData.risk_low,name:'低风险',itemStyle:{color:'#52c41a'}}]}]});}
       if(villageChartRef.value&&statsData.village_distribution.length>0){if(villageChart)villageChart.dispose();villageChart=echarts.init(villageChartRef.value);const d=statsData.village_distribution.slice(0,15);villageChart.setOption({tooltip:{trigger:'axis'},xAxis:{type:'category',data:d.map(v=>v.name),axisLabel:{rotate:30,fontSize:11}},yAxis:{type:'value'},series:[{type:'bar',data:d.map(v=>v.count),itemStyle:{color:'#409eff',borderRadius:[4,4,0,0]},barMaxWidth:30}]});}
       if(responsibleChartRef.value&&statsData.responsible_distribution.length>0){if(responsibleChart)responsibleChart.dispose();responsibleChart=echarts.init(responsibleChartRef.value);const d=statsData.responsible_distribution.slice(0,15);responsibleChart.setOption({tooltip:{trigger:'axis'},xAxis:{type:'category',data:d.map(r=>r.name),axisLabel:{rotate:30,fontSize:11}},yAxis:{type:'value'},series:[{type:'bar',data:d.map(r=>r.count),itemStyle:{color:'#722ed1',borderRadius:[4,4,0,0]},barMaxWidth:30}]});}
+      // 月度趋势折线图
+      if(trendChartRef.value&&trendData.value.length>0){if(trendChart)trendChart.dispose();trendChart=echarts.init(trendChartRef.value);trendChart.setOption({tooltip:{trigger:'axis'},xAxis:{type:'category',data:trendData.value.map(t=>t.month)},yAxis:{type:'value',minInterval:1},series:[{type:'line',data:trendData.value.map(t=>t.count),smooth:true,areaStyle:{opacity:0.15},itemStyle:{color:'#409eff'},lineStyle:{width:3},symbol:'circle',symbolSize:8}],grid:{left:50,right:20,top:20,bottom:40}});}
+      // 走访完成率仪表盘
+      if(visitGaugeRef.value){if(visitGauge)visitGauge.dispose();visitGauge=echarts.init(visitGaugeRef.value);const rate=quarterlyReport.visits?.completion_rate||0;visitGauge.setOption({series:[{type:'gauge',startAngle:200,endAngle:-20,min:0,max:100,progress:{show:true,width:18},axisLine:{lineStyle:{width:18,color:[[0.3,'#ff4d4f'],[0.7,'#faad14'],[1,'#52c41a']]}},axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},pointer:{show:false},anchor:{show:false},title:{show:true,offsetCenter:[0,'70%'],fontSize:14,color:'#666'},detail:{valueAnimation:true,fontSize:32,fontWeight:'bold',offsetCenter:[0,'40%'],formatter:'{value}%',color:'#333'},data:[{value:Math.round(rate),name:'走访完成率'}]}]});}
     }
-    function handleChartResize(){statusChart?.resize();riskChart?.resize();villageChart?.resize();responsibleChart?.resize();}
+    }
+    function handleChartResize(){statusChart?.resize();riskChart?.resize();villageChart?.resize();responsibleChart?.resize();trendChart?.resize();visitGauge?.resize();}
 
     const quarterlyReport=reactive({year:0,quarter:0,period:'',existing_at_start:0,new_this_quarter:0,current_total:0,active_count:0,visits:{total:0,'上门':0,'电话':0,'视频':0,abnormal:0,completion_rate:0}});
     async function fetchQuarterlyReport(){try{Object.assign(quarterlyReport,await api('/api/persons/reports/quarterly'));}catch{}}
@@ -794,7 +852,7 @@ createApp({
       if(key==='ledger'){if(!fromDashboard.value){filterPrisonPlace.value='';filterVillage.value='';filterExpiringDays.value=0;}fromDashboard.value=false;fetchPersons();}
       if(key==='visits'){fetchAllVisits();fetchVisitStats();}
       if(key==='history'){fetchAllEditLogs();}
-      if(key==='stats'){fetchStats();fetchQuarterlyReport();setTimeout(initCharts,300);}
+      if(key==='stats'){fetchStats();fetchQuarterlyReport();fetchTrend();setTimeout(initCharts,500);}
     }
 
     function getPersonName(id){const p=persons.value.items?.find(x=>x.id===id);return p?p.name:`#${id}`;}
@@ -871,8 +929,9 @@ createApp({
       showAddDialog,editId,formTab,submitLoading,formRef,personForm,formRules,fieldLabelMap,
       parseIdCard,editPerson,submitPerson,deletePerson,resetForm,handleExportExcel,
       fetchPersons,calcAge,deadlineStyle,fetchPersonsByExpiring,getPersonName,
+      selectedIds,batchNewStatus,batchNewRisk,onSelectionChange,batchDelete,batchStatus,batchRisk,
       prisonList,showAddPrisonDialog,newPrisonName,addPrison,fetchPrisonList,
-      quarterlyReport,statusChartRef,riskChartRef,villageChartRef,responsibleChartRef,
+      quarterlyReport,statusChartRef,riskChartRef,villageChartRef,responsibleChartRef,trendChartRef,visitGaugeRef,
       historyLoading,
     };
   }
