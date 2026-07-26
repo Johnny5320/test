@@ -299,6 +299,182 @@ def stats_summary(
     )
 
 
+@router.get("/stats/trend")
+def stats_trend(
+    months: int = Query(6, ge=1, le=24),
+    session: Session = Depends(get_session),
+):
+    """月度趋势统计 — 最近N个月每月新增人数"""
+    today = date.today()
+    result = []
+    for i in range(months - 1, -1, -1):
+        # 计算月份
+        year = today.year
+        month = today.month - i
+        while month <= 0:
+            month += 12
+            year -= 1
+        start = datetime(year, month, 1)
+        if month == 12:
+            end = datetime(year + 1, 1, 1)
+        else:
+            end = datetime(year, month + 1, 1)
+        cnt = session.exec(
+            select(func.count()).select_from(
+                select(Person).where(
+                    Person.is_deleted == False,
+                    Person.created_at >= start,
+                    Person.created_at < end,
+                ).subquery()
+            )
+        ).one()
+        result.append({"month": f"{year}-{month:02d}", "count": cnt})
+    return result
+
+
+@router.get("/{person_id}/risk-score")
+def get_risk_score(
+    person_id: int,
+    session: Session = Depends(get_session),
+):
+    """风险评分（0-100）"""
+    person = session.get(Person, person_id)
+    if not person or person.is_deleted:
+        raise HTTPException(status_code=404, detail="人员不存在")
+
+    score = 0
+    factors = []
+
+    # 风险等级权重（40分）
+    risk_weights = {"高": 40, "中": 20, "低": 10}
+    rw = risk_weights.get(person.risk_level, 0)
+    score += rw
+    factors.append({"type": "risk_level", "score": rw, "detail": f"风险等级：{person.risk_level}"})
+
+    # 走访超期（30分）
+    last_visit = session.exec(
+        select(Visit).where(Visit.person_id == person_id)
+        .order_by(Visit.visit_date.desc()).limit(1)
+    ).first()
+    today = date.today()
+    if last_visit:
+        days_since = (today - last_visit.visit_date).days
+    else:
+        if person.edu_start_date:
+            days_since = (today - person.edu_start_date).days
+        else:
+            days_since = (today - person.created_at.date()).days
+
+    interval = person.visit_interval_days or 90
+    if days_since > interval:
+        overdue = days_since - interval
+        vscore = min(30, 20 + overdue)
+        score += vscore
+        factors.append({"type": "visit_overdue", "score": vscore, "detail": f"走访超期{overdue}天"})
+    elif last_visit is None:
+        score += 40
+        factors.append({"type": "visit_overdue", "score": 40, "detail": "从未走访"})
+
+    # 到期预警（30分）
+    if person.edu_end_date:
+        days_remaining = (person.edu_end_date - today).days
+        if days_remaining <= 0:
+            score += 50
+            factors.append({"type": "expired", "score": 50, "detail": f"已超期{abs(days_remaining)}天"})
+        elif days_remaining <= 30:
+            escore = max(5, 30 - days_remaining)
+            score += escore
+            factors.append({"type": "expiring", "score": escore, "detail": f"剩余{days_remaining}天"})
+
+    score = min(score, 100)
+    if score >= 60:
+        level = "高风险"
+    elif score >= 30:
+        level = "中风险"
+    else:
+        level = "低风险"
+
+    return {"person_id": person_id, "score": score, "level": level, "factors": factors}
+
+
+@router.post("/batch/delete", response_model=ApiResponse)
+def batch_delete(
+    body: dict,
+    session: Session = Depends(get_session),
+):
+    """批量删除（软删除）"""
+    ids = body.get("ids", [])
+    if not ids:
+        raise HTTPException(status_code=400, detail="请选择要删除的人员")
+    if len(ids) > 100:
+        raise HTTPException(status_code=400, detail="单次最多删除100条")
+
+    count = 0
+    for pid in ids:
+        person = session.get(Person, pid)
+        if person and not person.is_deleted:
+            person.is_deleted = True
+            person.updated_at = datetime.now(timezone.utc)
+            session.add(person)
+            count += 1
+    session.commit()
+    return ApiResponse(message=f"成功删除{count}条记录")
+
+
+@router.post("/batch/status", response_model=ApiResponse)
+def batch_update_status(
+    body: dict,
+    session: Session = Depends(get_session),
+):
+    """批量修改状态"""
+    ids = body.get("ids", [])
+    new_status = body.get("status", "")
+    if not ids:
+        raise HTTPException(status_code=400, detail="请选择人员")
+    if new_status not in ["在帮", "已解除", "脱管", "重点关注"]:
+        raise HTTPException(status_code=400, detail="状态值无效")
+    if len(ids) > 100:
+        raise HTTPException(status_code=400, detail="单次最多100条")
+
+    count = 0
+    for pid in ids:
+        person = session.get(Person, pid)
+        if person and not person.is_deleted:
+            person.status = new_status
+            person.updated_at = datetime.now(timezone.utc)
+            session.add(person)
+            count += 1
+    session.commit()
+    return ApiResponse(message=f"成功修改{count}条记录状态为{new_status}")
+
+
+@router.post("/batch/risk", response_model=ApiResponse)
+def batch_update_risk(
+    body: dict,
+    session: Session = Depends(get_session),
+):
+    """批量修改风险等级"""
+    ids = body.get("ids", [])
+    new_risk = body.get("risk_level", "")
+    if not ids:
+        raise HTTPException(status_code=400, detail="请选择人员")
+    if new_risk not in ["高", "中", "低"]:
+        raise HTTPException(status_code=400, detail="风险等级值无效")
+    if len(ids) > 100:
+        raise HTTPException(status_code=400, detail="单次最多100条")
+
+    count = 0
+    for pid in ids:
+        person = session.get(Person, pid)
+        if person and not person.is_deleted:
+            person.risk_level = new_risk
+            person.updated_at = datetime.now(timezone.utc)
+            session.add(person)
+            count += 1
+    session.commit()
+    return ApiResponse(message=f"成功修改{count}条记录风险等级为{new_risk}")
+
+
 @router.get("/reports/quarterly")
 def quarterly_report(
     year: Optional[int] = None,
