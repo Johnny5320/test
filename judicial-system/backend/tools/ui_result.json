@@ -1,0 +1,116 @@
+{
+  "base": "http://127.0.0.1:8000",
+  "time": "2026-07-27T09:50:52",
+  "passed": 21,
+  "total": 21,
+  "steps": [
+    {
+      "name": "打开首页",
+      "ok": true,
+      "detail": "title='安置帮教智能台账系统'"
+    },
+    {
+      "name": "设置操作员",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "仪表盘统计卡片渲染",
+      "ok": true,
+      "detail": "9 张卡片"
+    },
+    {
+      "name": "点[脱管]卡片跳转台账",
+      "ok": true,
+      "detail": "13 行"
+    },
+    {
+      "name": "点[精神疾病]卡片跳转台账",
+      "ok": true,
+      "detail": "13 行"
+    },
+    {
+      "name": "台账[精神疾病]下拉 是/否 切换",
+      "ok": true,
+      "detail": "全部=20/是=13/否=20"
+    },
+    {
+      "name": "状态筛选[在帮]",
+      "ok": true,
+      "detail": "20 行"
+    },
+    {
+      "name": "风险筛选[高]",
+      "ok": true,
+      "detail": "20 行"
+    },
+    {
+      "name": "搜索功能",
+      "ok": true,
+      "detail": "搜'张' -> 2 行"
+    },
+    {
+      "name": "批量勾选(全选)出现批量工具栏",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "分页翻页",
+      "ok": true,
+      "detail": "第2页 20 行"
+    },
+    {
+      "name": "新增人员(填表+入库)",
+      "ok": true,
+      "detail": "UI测试员094936/158063199912101960"
+    },
+    {
+      "name": "搜索定位新增人员",
+      "ok": true,
+      "detail": "1 行"
+    },
+    {
+      "name": "打开详情抽屉并切换3个tab",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "抽屉内新增走访记录",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "删除走访记录",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "编辑人员(改电话保存)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "修改留痕记录到本次编辑",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "删除新增人员(数据清理)",
+      "ok": true,
+      "detail": "删除后 0 行"
+    },
+    {
+      "name": "走访记录页渲染",
+      "ok": true,
+      "detail": "2 行"
+    },
+    {
+      "name": "统计报表页渲染",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "console_errors": [],
+  "page_errors": [],
+  "screenshots_dir": "C:\\Users\\谢\\Desktop\\sys_v3.2\\judicial-system\\backend\\tools\\ui_shots"
+}

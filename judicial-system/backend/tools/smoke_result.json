@@ -1,0 +1,287 @@
+{
+  "base": "http://127.0.0.1:8000",
+  "total": 35,
+  "ok": 30,
+  "results": [
+    {
+      "name": "健康检查",
+      "method": "GET",
+      "path": "/health",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "登录(正确)",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "登录(错误密码,期望401)",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 401,
+      "ok": false,
+      "error": null
+    },
+    {
+      "name": "统计汇总",
+      "method": "GET",
+      "path": "/api/persons/stats/summary",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "人员列表",
+      "method": "GET",
+      "path": "/api/persons",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "新增人员",
+      "method": "POST",
+      "path": "/api/persons",
+      "status": 201,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "新增人员(重复身份证,期望400)",
+      "method": "POST",
+      "path": "/api/persons",
+      "status": 400,
+      "ok": false,
+      "error": null
+    },
+    {
+      "name": "获取人员详情",
+      "method": "GET",
+      "path": "/api/persons/116",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "修改人员",
+      "method": "PUT",
+      "path": "/api/persons/116",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "修改历史",
+      "method": "GET",
+      "path": "/api/persons/116/edit-logs",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "风险评分",
+      "method": "GET",
+      "path": "/api/persons/116/risk-score",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "服刑场所",
+      "method": "GET",
+      "path": "/api/persons/prisons",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "月度趋势",
+      "method": "GET",
+      "path": "/api/persons/stats/trend",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "季度报表",
+      "method": "GET",
+      "path": "/api/persons/reports/quarterly",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "新增走访",
+      "method": "POST",
+      "path": "/api/visits",
+      "status": 201,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "走访列表",
+      "method": "GET",
+      "path": "/api/visits",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "走访季度统计",
+      "method": "GET",
+      "path": "/api/visits/stats/quarterly",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "走访详情",
+      "method": "GET",
+      "path": "/api/visits/3",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "修改走访",
+      "method": "PUT",
+      "path": "/api/visits/3",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "删除走访",
+      "method": "DELETE",
+      "path": "/api/visits/3",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "提醒汇总",
+      "method": "GET",
+      "path": "/api/reminders",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "导出Excel",
+      "method": "GET",
+      "path": "/api/persons/export/excel",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "导入模板",
+      "method": "GET",
+      "path": "/api/persons/import/template",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "Excel导入",
+      "method": "POST",
+      "path": "/api/persons/import/excel",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "批量改状态",
+      "method": "POST",
+      "path": "/api/persons/batch/status",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "批量改风险",
+      "method": "POST",
+      "path": "/api/persons/batch/risk",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "文件上传(非法类型,期望400)",
+      "method": "POST",
+      "path": "/api/files/upload",
+      "status": 400,
+      "ok": false,
+      "error": null
+    },
+    {
+      "name": "文件上传(pdf)",
+      "method": "POST",
+      "path": "/api/files/upload",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "文件列表",
+      "method": "GET",
+      "path": "/api/files/list/116",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "文件删除",
+      "method": "DELETE",
+      "path": "/api/files/1",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "无效token(期望401)",
+      "method": "GET",
+      "path": "/api/persons",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "不存在人员(期望404)",
+      "method": "GET",
+      "path": "/api/persons/999999999",
+      "status": 404,
+      "ok": false,
+      "error": null
+    },
+    {
+      "name": "当前用户",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "改密码(原密码错,期望400)",
+      "method": "POST",
+      "path": "/api/auth/change-password",
+      "status": 400,
+      "ok": false,
+      "error": null
+    },
+    {
+      "name": "删除人员(软删)",
+      "method": "DELETE",
+      "path": "/api/persons/116",
+      "status": 200,
+      "ok": true,
+      "error": null
+    }
+  ]
+}

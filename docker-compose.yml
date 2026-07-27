@@ -1,0 +1,32 @@
+# ============================================================
+#  安置帮教智能台账系统 — Docker Compose
+#  用法: docker compose up -d
+# ============================================================
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: judicial-system
+    ports:
+      - "8000:8000"
+    volumes:
+      # 数据库持久化
+      - ./data:/app/data
+      # 上传文件持久化
+      - ./uploads:/app/uploads
+    environment:
+      - DATABASE_URL=sqlite:///./data/data.db
+      - UPLOAD_DIR=./uploads
+      - SECRET_KEY=${SECRET_KEY:-change-this-to-a-random-string-in-production}
+      - DEBUG=${DEBUG:-false}
+    env_file:
+      - ./judicial-system/backend/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
