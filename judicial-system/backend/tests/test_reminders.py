@@ -37,7 +37,7 @@ def test_reminders_empty(client):
     """空数据时提醒汇总"""
     resp = client.get("/api/reminders")
     assert resp.status_code == 200
-    data = resp.json()
+    data = resp.json()["data"]
     assert data["expiring_30d"] == 0
     assert data["expiring_7d"] == 0
     assert data["overdue_expired"] == 0
@@ -53,9 +53,9 @@ def test_expiring_30d(client):
         "status": "在帮", "edu_end_date": future.isoformat(),
     })
     resp = client.get("/api/reminders")
-    assert resp.json()["expiring_30d"] == 1
-    assert len(resp.json()["expiring_list"]) == 1
-    assert resp.json()["expiring_list"][0]["level"] == "30天"
+    assert resp.json()["data"]["expiring_30d"] == 1
+    assert len(resp.json()["data"]["expiring_list"]) == 1
+    assert resp.json()["data"]["expiring_list"][0]["level"] == "30天"
 
 
 def test_expiring_7d(client):
@@ -66,8 +66,8 @@ def test_expiring_7d(client):
         "status": "在帮", "edu_end_date": future.isoformat(),
     })
     resp = client.get("/api/reminders")
-    assert resp.json()["expiring_7d"] == 1
-    assert resp.json()["expiring_list"][0]["level"] == "7天"
+    assert resp.json()["data"]["expiring_7d"] == 1
+    assert resp.json()["data"]["expiring_list"][0]["level"] == "7天"
 
 
 def test_overdue_expired(client):
@@ -78,7 +78,7 @@ def test_overdue_expired(client):
         "status": "在帮", "edu_end_date": past.isoformat(),
     })
     resp = client.get("/api/reminders")
-    assert resp.json()["overdue_expired"] == 1
+    assert resp.json()["data"]["overdue_expired"] == 1
 
 
 def test_visit_overdue(client):
@@ -88,7 +88,7 @@ def test_visit_overdue(client):
         "name": "赵六", "id_card": "320102199004041234",
         "status": "在帮", "risk_level": "高",
     })
-    person_id = create_resp.json()["id"]
+    person_id = create_resp.json()["data"]["id"]
 
     # 添加一条45天前的走访记录
     old_date = (date.today() - timedelta(days=45)).isoformat()
@@ -98,9 +98,9 @@ def test_visit_overdue(client):
     })
 
     resp = client.get("/api/reminders")
-    assert resp.json()["visit_overdue"] == 1
-    assert resp.json()["visit_overdue_list"][0]["name"] == "赵六"
-    assert resp.json()["visit_overdue_list"][0]["overdue_days"] > 0
+    assert resp.json()["data"]["visit_overdue"] == 1
+    assert resp.json()["data"]["visit_overdue_list"][0]["name"] == "赵六"
+    assert resp.json()["data"]["visit_overdue_list"][0]["overdue_days"] > 0
 
 
 def test_visit_overdue_no_visit(client):
@@ -111,7 +111,7 @@ def test_visit_overdue_no_visit(client):
         "edu_start_date": (date.today() - timedelta(days=60)).isoformat(),
     })
     resp = client.get("/api/reminders")
-    assert resp.json()["visit_overdue"] == 1
+    assert resp.json()["data"]["visit_overdue"] == 1
 
 
 def test_visit_interval_custom(client):
@@ -121,13 +121,13 @@ def test_visit_interval_custom(client):
         "status": "在帮", "risk_level": "低",
         "visit_interval_days": 180,
     })
-    assert create_resp.json()["visit_interval_days"] == 180
+    assert create_resp.json()["data"]["visit_interval_days"] == 180
 
 
 def test_quarter_deadline(client):
     """季度归档截止日期"""
     resp = client.get("/api/reminders")
-    data = resp.json()
+    data = resp.json()["data"]
     assert "quarter_deadline_days" in data
     assert "quarter_deadline_date" in data
     assert data["quarter_deadline_days"] >= 0

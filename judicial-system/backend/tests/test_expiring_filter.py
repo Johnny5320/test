@@ -83,7 +83,7 @@ class TestRemindersList:
                        edu_end_date=(date.today() + timedelta(days=10)).isoformat())
         r = client.get("/api/reminders")
         assert r.status_code == 200
-        data = r.json()
+        data = r.json()["data"]
         assert "expiring_list" in data
         assert isinstance(data["expiring_list"], list)
         names = [p["name"] for p in data["expiring_list"]]
@@ -93,7 +93,7 @@ class TestRemindersList:
         """提醒接口应返回 visit_overdue_list"""
         r = client.get("/api/reminders")
         assert r.status_code == 200
-        data = r.json()
+        data = r.json()["data"]
         assert "visit_overdue_list" in data
         assert isinstance(data["visit_overdue_list"], list)
 
@@ -102,7 +102,7 @@ class TestRemindersList:
         _create_person(client, client.headers, "字段测试", "320102199001011013",
                        edu_end_date=(date.today() + timedelta(days=5)).isoformat())
         r = client.get("/api/reminders")
-        data = r.json()
+        data = r.json()["data"]
         item = next((p for p in data["expiring_list"] if p["name"] == "字段测试"), None)
         assert item is not None
         for key in ["name", "risk_level", "edu_end_date", "days_remaining", "level"]:
@@ -112,7 +112,7 @@ class TestRemindersList:
         """visit_overdue_list 每项应包含必要字段"""
         _create_person(client, client.headers, "走访字段测试", "320102199001011013")
         r = client.get("/api/reminders")
-        data = r.json()
+        data = r.json()["data"]
         # 如果有超期未走访的人员
         if data["visit_overdue_list"]:
             item = data["visit_overdue_list"][0]
