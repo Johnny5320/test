@@ -2,7 +2,7 @@ name: 全功能测试
 
 on:
   push:
-    branches: [master, 'fix/**', 'feature/**']
+    branches: [master, main, '3.3', 'fix/**', 'feature/**']
   pull_request:
     branches: [master]
 
