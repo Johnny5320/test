@@ -47,12 +47,11 @@ class TestIdCard:
         r = client.post("/api/persons", json={"name": "张三", "id_card": "320102199001010070X"})
         assert r.status_code == 200
 
-    @pytest.mark.skip(reason="v3.2 bug: 小写x未自动转大写")
     def test_valid_id_card_with_lowercase_x(self, client):
         """18位，最后一位小写x — 应自动转大写"""
-        r = client.post("/api/persons", json={"name": "张三", "id_card": "320102199001010070x"})
+        r = client.post("/api/persons", json={"name": "张三", "id_card": "32010219760707006x"})
         assert r.status_code == 200
-        assert r.json()["data"]["id_card"] == "320102199001010070X"
+        assert r.json()["data"]["id_card"] == "32010219760707006X"
 
     def test_invalid_id_card_17_digits(self, client):
         """17位 — 太短"""
