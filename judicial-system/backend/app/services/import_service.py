@@ -112,7 +112,7 @@ def validate_rows(rows: List[Dict[str, Any]]
 def _validate_one_row(idx: int, raw: Dict, seen: Set[str]) -> List[ImportErrorDetail]:
     """必填/长度/校验位/文件内去重/日期/枚举（枚举校验原版有，保留）"""
     errors: List[ImportErrorDetail] = []
-    row_data = {_FIELD_TO_HEADER.get(h, h): str(v).strip()
+    row_data = {IMPORT_FIELD_MAP.get(h, h): str(v).strip()
                 for h, v in raw.items() if v is not None and str(v).strip()}
     for required in IMPORT_REQUIRED_FIELDS:
         if not row_data.get(required):

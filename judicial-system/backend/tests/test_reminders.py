@@ -49,7 +49,7 @@ def test_expiring_30d(client):
     """30天内到期"""
     future = date.today() + timedelta(days=20)
     client.post("/api/persons", json={
-        "name": "张三", "id_card": "32010219900100100X",
+        "name": "张三", "id_card": "320102197203030029",
         "status": "在帮", "edu_end_date": future.isoformat(),
     })
     resp = client.get("/api/reminders")
@@ -62,7 +62,7 @@ def test_expiring_7d(client):
     """7天内到期"""
     future = date.today() + timedelta(days=5)
     client.post("/api/persons", json={
-        "name": "李四", "id_card": "32010219900202123X",
+        "name": "李四", "id_card": "320102197304040031",
         "status": "在帮", "edu_end_date": future.isoformat(),
     })
     resp = client.get("/api/reminders")
@@ -74,7 +74,7 @@ def test_overdue_expired(client):
     """已超期"""
     past = date.today() - timedelta(days=10)
     client.post("/api/persons", json={
-        "name": "王五", "id_card": "320102199001010010",
+        "name": "王五", "id_card": "320102197405050044",
         "status": "在帮", "edu_end_date": past.isoformat(),
     })
     resp = client.get("/api/reminders")
@@ -85,7 +85,7 @@ def test_visit_overdue(client):
     """超期未走访"""
     # 创建人员（高风险，默认30天间隔）
     create_resp = client.post("/api/persons", json={
-        "name": "赵六", "id_card": "320102199001010029",
+        "name": "赵六", "id_card": "320102197506060057",
         "status": "在帮", "risk_level": "高",
     })
     person_id = create_resp.json()["data"]["id"]
@@ -106,7 +106,7 @@ def test_visit_overdue(client):
 def test_visit_overdue_no_visit(client):
     """从未走访过"""
     client.post("/api/persons", json={
-        "name": "钱七", "id_card": "320102199001010037",
+        "name": "钱七", "id_card": "32010219760707006X",
         "status": "在帮", "risk_level": "高",
         "edu_start_date": (date.today() - timedelta(days=60)).isoformat(),
     })
@@ -117,7 +117,7 @@ def test_visit_overdue_no_visit(client):
 def test_visit_interval_custom(client):
     """自定义走访间隔"""
     create_resp = client.post("/api/persons", json={
-        "name": "测试", "id_card": "320102199001010045",
+        "name": "测试", "id_card": "320102197708080072",
         "status": "在帮", "risk_level": "低",
         "visit_interval_days": 180,
     })
