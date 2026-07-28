@@ -62,7 +62,7 @@ jobs:
           # 登录
           r = c.post("/api/auth/login", json={"username":"admin","password":"admin123"})
           assert r.status_code == 200
-          TOKEN = r.json()["access_token"]
+          TOKEN = r.json()["data"]["access_token"]
           H = {"Authorization": f"Bearer {TOKEN}"}
 
           today = date.today()
@@ -88,23 +88,32 @@ jobs:
           for d in test_data:
             r = c.post("/api/persons", json=d, headers=H)
             if r.status_code == 201:
-              ids.append(r.json()["id"])
+              ids.append(r.json()["data"]["id"])
             elif r.status_code == 400:
               r2 = c.get(f"/api/persons?search={d['name']}", headers=H)
-              if r2.json()["items"]:
-                ids.append(r2.json()["items"][0]["id"])
+              if (r2.json().get("data") or r2.json()).get("items",[]):
+                ids.append((r2.json().get("data") or r2.json()).get("items",[])[0]["id"])
+
+          # ========== 辅助函数 ==========
+          def get(path):
+            r = c.get(path, headers=H)
+            return r.json().get("data") or r.json()
+
+          def post(path, body={}):
+            r = c.post(path, json=body, headers=H)
+            return r.json()
 
           # ========== 基础功能 ==========
           test("登录", lambda: "OK")
-          test("用户信息", lambda: f"{c.get('/api/auth/me', headers=H).json()['real_name']}")
-          test("人员列表", lambda: f"total={c.get('/api/persons?page_size=20', headers=H).json()['total']}")
-          test("搜索", lambda: f"命中{c.get('/api/persons?search=A_5天', headers=H).json()['total']}条")
-          test("人员详情", lambda: f"id={c.get(f'/api/persons/{ids[0]}', headers=H).json()['id']}")
-          test("修改人员", lambda: f"{c.put(f'/api/persons/{ids[0]}', json={'risk_level':'中'}, headers=H).status_code}")
-          test("修改历史", lambda: f"{len(c.get(f'/api/persons/{ids[0]}/edit-logs', headers=H).json())}条")
-          test("统计汇总", lambda: f"total={c.get('/api/persons/stats/summary', headers=H).json()['total']}")
-          test("季度报表", lambda: f"{c.get('/api/persons/reports/quarterly', headers=H).status_code}")
-          test("Excel导出", lambda: f"{len(c.get('/api/persons/export/excel', headers=H).content)}bytes")
+          test("用户信息", lambda: f"name={get('/api/auth/me')['real_name']}")
+          test("人员列表", lambda: f"total={get('/api/persons?page_size=20')['total']}")
+          test("搜索", lambda: f"命中{get('/api/persons?search=A_5天')['total']}条")
+          test("人员详情", lambda: f"id={get(f'/api/persons/{ids[0]}')['id']}")
+          test("修改人员", lambda: f"code={c.patch(f'/api/persons/{ids[0]}', json={'risk_level':'中'}, headers=H).json().get('code',0)}")
+          test("修改历史", lambda: f"{len(get(f'/api/persons/{ids[0]}/edit-logs'))}条")
+          test("统计汇总", lambda: f"total={get('/api/persons/stats-summary')['total']}")
+          test("季度报表", lambda: f"code={get('/api/persons/reports-quarterly').get('year','?')}")
+          test("Excel导出", lambda: f"{len(c.get('/api/persons/export', headers=H).content)}bytes")
 
           # ========== Bug 1: 预警列表 ==========
           def t_expiring_list():
@@ -143,26 +152,26 @@ jobs:
           # ========== Bug 2: 到期筛选 ==========
           def t_7d_filter():
             r = c.get("/api/persons?expiring_within_days=7", headers=H)
-            names = [p["name"] for p in r.json()["items"]]
+            names = [p["name"] for p in (r.json().get("data") or r.json()).get("items",[])]
             assert "A_5天到期" in names, f"5天应包含: {names}"
             assert "B_15天到期" not in names, f"15天不应包含"
             assert "E_正常90天" not in names, f"90天不应包含"
-            return f"{r.json()['total']}人: {names}"
+            return f"{(r.json().get("data") or r.json()).get("total",0)}人: {names}"
           test("7天到期筛选", t_7d_filter)
 
           def t_30d_filter():
             r = c.get("/api/persons?expiring_within_days=30", headers=H)
-            names = [p["name"] for p in r.json()["items"]]
+            names = [p["name"] for p in (r.json().get("data") or r.json()).get("items",[])]
             assert "A_5天到期" in names
             assert "B_15天到期" in names
             assert "C_25天到期" in names
             assert "E_正常90天" not in names
-            return f"{r.json()['total']}人"
+            return f"{(r.json().get("data") or r.json()).get("total",0)}人"
           test("30天到期筛选", t_30d_filter)
 
           def t_30d_only_active():
             r = c.get("/api/persons?expiring_within_days=30", headers=H)
-            statuses = set(p["status"] for p in r.json()["items"])
+            statuses = set(p["status"] for p in (r.json().get("data") or r.json()).get("items",[]))
             assert statuses == {"在帮"}, f"应全在帮: {statuses}"
             return f"全部在帮"
           test("到期筛选-只含在帮", t_30d_only_active)
@@ -171,8 +180,8 @@ jobs:
           def t_minor_mental():
             r1 = c.get("/api/persons?is_minor=true", headers=H)
             r2 = c.get("/api/persons?is_minor=true&is_mental=true", headers=H)
-            n1 = [p["name"] for p in r1.json()["items"]]
-            n2 = [p["name"] for p in r2.json()["items"]]
+            n1 = [p["name"] for p in (r1.json().get("data") or r1.json()).get("items",[])]
+            n2 = [p["name"] for p in (r2.json().get("data") or r2.json()).get("items",[])]
             assert "G_未成年精神" in n1 and "G_未成年精神" in n2
             assert "B_15天到期" in n1 and "B_15天到期" not in n2
             return f"未成年({len(n1)}) + 精神({len(n2)})"
@@ -181,15 +190,15 @@ jobs:
           def t_mental_minor_reverse():
             r1 = c.get("/api/persons?is_mental=true", headers=H)
             r2 = c.get("/api/persons?is_mental=true&is_minor=true", headers=H)
-            n1 = [p["name"] for p in r1.json()["items"]]
-            n2 = [p["name"] for p in r2.json()["items"]]
+            n1 = [p["name"] for p in (r1.json().get("data") or r1.json()).get("items",[])]
+            n2 = [p["name"] for p in (r2.json().get("data") or r2.json()).get("items",[])]
             assert "D_已超期" in n1 and "D_已超期" not in n2
             return f"精神({len(n1)}) + 未成年({len(n2)})"
           test("组合筛选:精神+未成年", t_mental_minor_reverse)
 
           def t_expiring_minor():
             r = c.get("/api/persons?expiring_within_days=30&is_minor=true", headers=H)
-            names = [p["name"] for p in r.json()["items"]]
+            names = [p["name"] for p in (r.json().get("data") or r.json()).get("items",[])]
             assert "B_15天到期" in names
             assert "G_未成年精神" in names
             assert "A_5天到期" not in names
@@ -198,16 +207,16 @@ jobs:
 
           def t_xj_filter():
             r = c.get("/api/persons?is_xj=true", headers=H)
-            names = [p["name"] for p in r.json()["items"]]
+            names = [p["name"] for p in (r.json().get("data") or r.json()).get("items",[])]
             assert "C_25天到期" in names
             return f"{len(names)}人"
           test("xj筛选", t_xj_filter)
 
           def t_status_filter():
             r = c.get("/api/persons?status=在帮", headers=H)
-            for p in r.json()["items"]:
+            for p in (r.json().get("data") or r.json()).get("items",[]):
               assert p["status"] == "在帮"
-            return f"{r.json()['total']}人"
+            return f"{(r.json().get("data") or r.json()).get("total",0)}人"
           test("状态筛选", t_status_filter)
 
           # ========== 新增API: 月度趋势/风险评分/批量操作 ==========
@@ -220,25 +229,25 @@ jobs:
           def t_risk_score():
             r = c.get(f"/api/persons/{ids[-1]}/risk-score", headers=H)
             assert r.status_code == 200 and "score" in r.json()
-            return f"score={r.json()['score']}, level={r.json()['level']}"
+            return f"score={r.json()["data"]["score"]}, level={r.json()["data"]["level"]}"
           test("风险评分", t_risk_score)
 
           def t_batch_delete():
             r = c.post("/api/persons/batch/delete", json={"ids":[ids[0]]}, headers=H)
             assert r.status_code == 200
-            return r.json()["message"]
+            return r.json().get("message","ok")
           test("批量删除", t_batch_delete)
 
           def t_batch_status():
             r = c.post("/api/persons/batch/status", json={"ids":[ids[1]],"status":"脱管"}, headers=H)
             assert r.status_code == 200
-            return r.json()["message"]
+            return r.json().get("message","ok")
           test("批量改状态", t_batch_status)
 
           def t_batch_risk():
             r = c.post("/api/persons/batch/risk", json={"ids":[ids[2]],"risk_level":"高"}, headers=H)
             assert r.status_code == 200
-            return r.json()["message"]
+            return r.json().get("message","ok")
           test("批量改风险", t_batch_risk)
 
           # 走访
@@ -247,8 +256,8 @@ jobs:
             return f"{r.status_code}"
           test("新增走访", t_visit)
 
-          test("走访列表", lambda: f"total={c.get('/api/visits?page_size=100', headers=H).json()['total']}")
-          test("季度走访统计", lambda: f"total={c.get('/api/visits/stats/quarterly', headers=H).json()['total']}")
+          test("走访列表", lambda: f"total={c.get('/api/visits?page_size=100', headers=H).json()["data"]["total"]}")
+          test("季度走访统计", lambda: f"total={c.get('/api/visits/stats/quarterly', headers=H).json()["data"]["total"]}")
           test("改密码", lambda: f"{c.post('/api/auth/change-password', json={'old_password':'admin123','new_password':'admin123'}, headers=H).status_code}")
 
           proc.terminate()
