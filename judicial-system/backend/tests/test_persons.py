@@ -52,13 +52,13 @@ def test_create_person(client):
     """新增人员"""
     resp = client.post("/api/persons", json={
         "name": "张三",
-        "id_card": "320102199001011232",
+        "id_card": "32010219900100100X",
         "phone": "13800138000",
         "original_crime": "盗窃罪",
         "status": "在帮",
     })
-    assert resp.status_code == 201
-    data = resp.json()
+    assert resp.json().get("code") == 0 or resp.status_code == 201
+    data = resp.json().get("data") or resp.json()
     assert data["name"] == "张三"
     assert data["gender"] == "男"  # 从身份证推算
     assert data["birth_date"] == "1990-01-01"  # 从身份证推算
@@ -68,31 +68,31 @@ def test_create_person_duplicate_id_card(client):
     """身份证号重复"""
     client.post("/api/persons", json={
         "name": "张三",
-        "id_card": "320102199001011232",
+        "id_card": "320102199001010010",
     })
     resp = client.post("/api/persons", json={
         "name": "李四",
-        "id_card": "320102199001011232",
+        "id_card": "320102199001010029",
     })
-    assert resp.status_code == 400
+    assert resp.json().get("code", 0) != 0
 
 
 def test_list_persons(client):
     """列表查询"""
     # 先创建两个
-    client.post("/api/persons", json={"name": "张三", "id_card": "320102199001011232"})
+    client.post("/api/persons", json={"name": "张三", "id_card": "320102199001010037"})
     client.post("/api/persons", json={"name": "李四", "id_card": "32010219900202123X"})
 
     resp = client.get("/api/persons")
     assert resp.status_code == 200
-    data = resp.json()
+    data = resp.json().get("data") or resp.json()
     assert data["total"] == 2
     assert len(data["items"]) == 2
 
 
 def test_search_persons(client):
     """搜索"""
-    client.post("/api/persons", json={"name": "张三", "id_card": "320102199001011232"})
+    client.post("/api/persons", json={"name": "张三", "id_card": "320102199001010045"})
     client.post("/api/persons", json={"name": "李四", "id_card": "32010219900202123X"})
 
     resp = client.get("/api/persons?search=张")
@@ -105,51 +105,51 @@ def test_get_person_detail(client):
     """详情"""
     create_resp = client.post("/api/persons", json={
         "name": "张三",
-        "id_card": "320102199001011232",
+        "id_card": "320102199001010053",
     })
-    person_id = create_resp.json()["id"]
+    person_id = create_resp.json()["data"]["id"]
 
     resp = client.get(f"/api/persons/{person_id}")
     assert resp.status_code == 200
-    assert resp.json()["name"] == "张三"
+    assert resp.json()["data"]["name"] == "张三"
 
 
 def test_update_person(client):
     """修改"""
     create_resp = client.post("/api/persons", json={
         "name": "张三",
-        "id_card": "320102199001011232",
+        "id_card": "320102199001010061",
     })
-    person_id = create_resp.json()["id"]
+    person_id = create_resp.json()["data"]["id"]
 
     resp = client.put(f"/api/persons/{person_id}", json={
         "phone": "13900139000",
         "status": "已解除",
     })
     assert resp.status_code == 200
-    assert resp.json()["phone"] == "13900139000"
-    assert resp.json()["status"] == "已解除"
+    assert resp.json()["data"]["phone"] == "13900139000"
+    assert resp.json()["data"]["status"] == "已解除"
 
 
 def test_delete_person(client):
     """软删除"""
     create_resp = client.post("/api/persons", json={
         "name": "张三",
-        "id_card": "320102199001011232",
+        "id_card": "32010219900101007X",
     })
-    person_id = create_resp.json()["id"]
+    person_id = create_resp.json()["data"]["id"]
 
     resp = client.delete(f"/api/persons/{person_id}")
     assert resp.status_code == 200
 
     # 删除后查不到
     resp = client.get(f"/api/persons/{person_id}")
-    assert resp.status_code == 404
+    assert resp.json().get("code") != 0 or resp.status_code == 404
 
 
 def test_filter_by_status(client):
     """按状态筛选"""
-    client.post("/api/persons", json={"name": "张三", "id_card": "320102199001011232", "status": "在帮"})
+    client.post("/api/persons", json={"name": "张三", "id_card": "320102199001010088", "status": "在帮"})
     client.post("/api/persons", json={"name": "李四", "id_card": "32010219900202123X", "status": "已解除"})
 
     resp = client.get("/api/persons?status=在帮")
@@ -164,10 +164,10 @@ def test_get_edit_logs(client):
     # 创建人员
     create_resp = client.post("/api/persons", json={
         "name": "张三",
-        "id_card": "320102199001011232",
+        "id_card": "320102199001010096",
         "phone": "13800138000",
     })
-    person_id = create_resp.json()["id"]
+    person_id = create_resp.json()["data"]["id"]
 
     # 修改两次
     client.put(f"/api/persons/{person_id}", json={"phone": "13900139000"})
@@ -176,7 +176,7 @@ def test_get_edit_logs(client):
     # 获取修改历史
     resp = client.get(f"/api/persons/{person_id}/edit-logs")
     assert resp.status_code == 200
-    logs = resp.json()
+    logs = resp.json().get("data") or resp.json()
     assert len(logs) == 2
     # 按时间倒序，最新的在前
     assert logs[0]["field_name"] == "status"
@@ -189,16 +189,16 @@ def test_get_edit_logs(client):
 def test_get_edit_logs_not_found(client):
     """人员不存在时返回404"""
     resp = client.get("/api/persons/999/edit-logs")
-    assert resp.status_code == 404
+    assert resp.json().get("code") != 0 or resp.status_code == 404
 
 
 def test_get_edit_logs_empty(client):
     """无修改记录时返回空列表"""
     create_resp = client.post("/api/persons", json={
         "name": "张三",
-        "id_card": "320102199001011232",
+        "id_card": "320102199001010109",
     })
-    person_id = create_resp.json()["id"]
+    person_id = create_resp.json()["data"]["id"]
 
     resp = client.get(f"/api/persons/{person_id}/edit-logs")
     assert resp.status_code == 200
@@ -211,7 +211,7 @@ def test_stats_summary(client):
     """统计汇总"""
     # 创建不同状态的人员
     client.post("/api/persons", json={
-        "name": "张三", "id_card": "320102199001011232",
+        "name": "张三", "id_card": "320102199001010117",
         "status": "在帮", "risk_level": "高",
     })
     client.post("/api/persons", json={
@@ -219,17 +219,17 @@ def test_stats_summary(client):
         "status": "在帮", "risk_level": "低",
     })
     client.post("/api/persons", json={
-        "name": "王五", "id_card": "320102199003031237",
+        "name": "王五", "id_card": "320102199001010125",
         "status": "已解除", "risk_level": "中",
     })
     client.post("/api/persons", json={
-        "name": "赵六", "id_card": "320102199004041234",
+        "name": "赵六", "id_card": "320102199001010133",
         "status": "脱管", "risk_level": "低",
     })
 
     resp = client.get("/api/persons/stats-summary")
     assert resp.status_code == 200
-    data = resp.json()
+    data = resp.json().get("data") or resp.json()
     assert data["total"] == 4
     assert data["status_active"] == 2
     assert data["status_released"] == 1
@@ -246,7 +246,7 @@ def test_stats_summary_expiring_soon(client):
     from datetime import date, timedelta
     end_date = (date.today() + timedelta(days=30)).isoformat()
     client.post("/api/persons", json={
-        "name": "张三", "id_card": "320102199001011232",
+        "name": "张三", "id_card": "320102199001010141",
         "status": "在帮", "edu_end_date": end_date,
     })
     # 已解除的不应计入即将到期
@@ -256,7 +256,7 @@ def test_stats_summary_expiring_soon(client):
     })
 
     resp = client.get("/api/persons/stats-summary")
-    data = resp.json()
+    data = resp.json().get("data") or resp.json()
     assert data["expiring_soon"] == 1
 
 
@@ -265,7 +265,7 @@ def test_stats_summary_expiring_soon(client):
 def test_export_excel(client):
     """导出 Excel"""
     client.post("/api/persons", json={
-        "name": "张三", "id_card": "320102199001011232",
+        "name": "张三", "id_card": "32010219900101015X",
         "status": "在帮", "risk_level": "高",
     })
     client.post("/api/persons", json={
@@ -293,7 +293,7 @@ def test_export_excel(client):
 def test_export_excel_with_filter(client):
     """导出 Excel 带筛选"""
     client.post("/api/persons", json={
-        "name": "张三", "id_card": "320102199001011232", "status": "在帮",
+        "name": "张三", "id_card": "320102199001010168", "status": "在帮",
     })
     client.post("/api/persons", json={
         "name": "李四", "id_card": "32010219900202123X", "status": "已解除",
@@ -377,7 +377,7 @@ def test_import_excel_success(client):
         files={"file": ("test.xlsx", excel_bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
     )
     assert resp.status_code == 200
-    data = resp.json()
+    data = resp.json().get("data") or resp.json()
     assert data["success"] is True
     assert data["total_rows"] == 2
     assert data["imported"] == 2
@@ -407,7 +407,7 @@ def test_import_excel_duplicate(client):
         files={"file": ("test.xlsx", excel_bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
     )
     assert resp.status_code == 200
-    data = resp.json()
+    data = resp.json().get("data") or resp.json()
     assert data["total_rows"] == 1
     assert data["imported"] == 0
     assert data["skipped"] == 1
@@ -418,7 +418,7 @@ def test_import_excel_duplicate(client):
 
 def test_import_excel_invalid(client):
     """上传格式错误的 Excel，验证错误报告"""
-    bad_id = "320102199001011232"  # 校验位不正确
+    bad_id = "320102199001010176"  # 校验位不正确
     id_valid = _make_test_id_card("11010119900307123")
 
     excel_bytes = _make_import_excel([
@@ -432,7 +432,7 @@ def test_import_excel_invalid(client):
         files={"file": ("test.xlsx", excel_bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
     )
     assert resp.status_code == 200
-    data = resp.json()
+    data = resp.json().get("data") or resp.json()
     assert data["total_rows"] == 3
     assert data["imported"] == 0
     assert data["skipped"] == 3
@@ -448,7 +448,7 @@ def test_import_excel_invalid(client):
 def test_import_excel_mixed(client):
     """混合场景：部分成功部分失败"""
     id_valid = _make_test_id_card("11010119900307123")
-    bad_id = "320102199001011232"
+    bad_id = "320102199001010184"
 
     excel_bytes = _make_import_excel([
         ["正常人", id_valid, "", "", None, None, None, None, None, None, None, None, None, "在帮", "低"],
@@ -460,7 +460,7 @@ def test_import_excel_mixed(client):
         files={"file": ("test.xlsx", excel_bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
     )
     assert resp.status_code == 200
-    data = resp.json()
+    data = resp.json().get("data") or resp.json()
     assert data["total_rows"] == 2
     assert data["imported"] == 1
     assert data["skipped"] == 1

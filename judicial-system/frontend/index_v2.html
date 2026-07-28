@@ -955,19 +955,27 @@ createApp({
     // 台账内调整筛选：保留其他筛选条件，仅回到第1页并立即查询（不防抖）
     function applyFilter(){ if(fetchTimer)clearTimeout(fetchTimer); currentPage.value=1; fetchPersons(); }
 
-    async function fetchAllVisits(){try{allVisits.value=(await visitApi.list({page_size:100})).items||[];}catch(e){allVisits.value=[];handleApiError(e);}}
+    async function fetchAllVisits(){try{allVisits.value=(await visitApi.list({page_size:2000})).items||[];}catch(e){allVisits.value=[];handleApiError(e);}}
     async function fetchVisitStats(){try{Object.assign(visitStats,await visitApi.statsQuarterly());}catch(e){handleApiError(e);}}
 
     async function fetchAllEditLogs(){
       historyLoading.value=true;
       try{
-        const pList=await personApi.list({page_size:100});
-        const logs=[];
-        for(const p of(pList.items||[])){
-          try{const r=await personApi.editLogs(p.id);if(Array.isArray(r))logs.push(...r);else if(r.items)logs.push(...r.items);}
-          catch(e){console.warn('拉取编辑日志失败 id='+p.id+':',e);}  // 单人失败不阻塞整体
+        // 分页加载所有人员ID
+        let allPersons=[];
+        let page=1;
+        while(true){
+          const pList=await personApi.list({page:page,page_size:500});
+          allPersons.push(...(pList.items||[]));
+          if(page>=pList.pages)break;
+          page++;
         }
-        logs.sort((a,b)=>(b.edited_at||'').localeCompare(a.edited_at||''));allEditLogs.value=logs;filteredHistory.value=logs;
+        const logs=[];
+        for(const p of allPersons){
+          try{const r=await personApi.editLogs(p.id);if(Array.isArray(r))logs.push(...r);else if(r.items)logs.push(...r.items);}
+          catch(e){}
+        }
+        logs.sort((a,b)=>(b.edited_at||'').localeCompare(a.edited_at||''));allEditLogs.value=logs;filteredEditLogs.value=logs;
       }catch(e){allEditLogs.value=[];handleApiError(e);}
       historyLoading.value=false;
     }

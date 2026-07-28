@@ -316,7 +316,7 @@ def test_person_import_missing_name():
     wb = Workbook()
     ws = wb.active
     ws.append(["姓名", "身份证号"])
-    ws.append(["", "320102199001011777"])
+    ws.append(["", "32010219900100100X"])
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -332,7 +332,7 @@ def test_person_import_bad_enum():
     wb = Workbook()
     ws = wb.active
     ws.append(["姓名", "身份证号", "状态"])
-    ws.append(["枚举测试", "320102199001011662", "非法状态"])
+    ws.append(["枚举测试", "320102199001010010", "非法状态"])
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -348,7 +348,7 @@ def test_person_import_bad_date():
     wb = Workbook()
     ws = wb.active
     ws.append(["姓名", "身份证号", "释放日期"])
-    ws.append(["日期测试", "320102199001011558", "not-a-date"])
+    ws.append(["日期测试", "320102199001010029", "not-a-date"])
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)

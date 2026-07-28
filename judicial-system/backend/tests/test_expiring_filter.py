@@ -18,7 +18,7 @@ class TestExpiringFilter:
 
     def test_filter_30d_includes_15d(self, client):
         """15天后到期 → 30天筛选应包含"""
-        _create_person(client, client.headers, "15天到期", "320102199001011005",
+        _create_person(client, client.headers, "15天到期", "32010219900100100X",
                        edu_end_date=(date.today() + timedelta(days=15)).isoformat())
         r = client.get("/api/persons?expiring_within_days=30")
         assert r.status_code == 200
@@ -27,7 +27,7 @@ class TestExpiringFilter:
 
     def test_filter_7d_excludes_15d(self, client):
         """15天后到期 → 7天筛选不应包含"""
-        _create_person(client, client.headers, "15天到期B", "320102199001011005",
+        _create_person(client, client.headers, "15天到期B", "320102199001010010",
                        edu_end_date=(date.today() + timedelta(days=15)).isoformat())
         r = client.get("/api/persons?expiring_within_days=7")
         assert r.status_code == 200
@@ -36,7 +36,7 @@ class TestExpiringFilter:
 
     def test_filter_only_active(self, client):
         """已解除人员即使近期到期也不应出现"""
-        _create_person(client, client.headers, "已解除到期", "320102199001011005",
+        _create_person(client, client.headers, "已解除到期", "320102199001010029",
                        status="已解除", edu_end_date=(date.today() + timedelta(days=3)).isoformat())
         r = client.get("/api/persons?expiring_within_days=7")
         names = [p["name"] for p in r.json()["data"]["items"]]
@@ -44,16 +44,16 @@ class TestExpiringFilter:
 
     def test_filter_no_end_date_excluded(self, client):
         """无截止日期的人员不应出现"""
-        _create_person(client, client.headers, "无截止日期", "320102199001011005")
+        _create_person(client, client.headers, "无截止日期", "320102199001010037")
         r = client.get("/api/persons?expiring_within_days=30")
         names = [p["name"] for p in r.json()["data"]["items"]]
         assert "无截止日期" not in names
 
     def test_combined_with_is_minor(self, client):
         """到期筛选 + 未成年筛选叠加"""
-        _create_person(client, client.headers, "未成年到期", "320102199001011005",
+        _create_person(client, client.headers, "未成年到期", "320102199001010045",
                        edu_end_date=(date.today() + timedelta(days=10)).isoformat(), is_minor=True)
-        _create_person(client, client.headers, "成年到期", "320102199001011005",
+        _create_person(client, client.headers, "成年到期", "320102199001010053",
                        edu_end_date=(date.today() + timedelta(days=10)).isoformat(), is_minor=False)
 
         r = client.get("/api/persons?expiring_within_days=30&is_minor=true")
@@ -63,9 +63,9 @@ class TestExpiringFilter:
 
     def test_combined_with_is_mental(self, client):
         """到期筛选 + 精神疾病筛选叠加"""
-        _create_person(client, client.headers, "精神到期", "320102199001011005",
+        _create_person(client, client.headers, "精神到期", "320102199001010061",
                        edu_end_date=(date.today() + timedelta(days=10)).isoformat(), is_mental=True)
-        _create_person(client, client.headers, "正常到期", "320102199001011005",
+        _create_person(client, client.headers, "正常到期", "32010219900101007X",
                        edu_end_date=(date.today() + timedelta(days=10)).isoformat(), is_mental=False)
 
         r = client.get("/api/persons?expiring_within_days=30&is_mental=true")
@@ -79,7 +79,7 @@ class TestRemindersList:
 
     def test_reminders_has_expiring_list(self, client):
         """提醒接口应返回 expiring_list"""
-        _create_person(client, client.headers, "提醒测试A", "320102199001011013",
+        _create_person(client, client.headers, "提醒测试A", "320102199001010088",
                        edu_end_date=(date.today() + timedelta(days=10)).isoformat())
         r = client.get("/api/reminders")
         assert r.status_code == 200
@@ -99,7 +99,7 @@ class TestRemindersList:
 
     def test_expiring_list_has_required_fields(self, client):
         """expiring_list 每项应包含 name/risk_level/edu_end_date/days_remaining/level"""
-        _create_person(client, client.headers, "字段测试", "320102199001011013",
+        _create_person(client, client.headers, "字段测试", "320102199001010096",
                        edu_end_date=(date.today() + timedelta(days=5)).isoformat())
         r = client.get("/api/reminders")
         data = r.json()["data"]
@@ -110,7 +110,7 @@ class TestRemindersList:
 
     def test_visit_overdue_list_has_required_fields(self, client):
         """visit_overdue_list 每项应包含必要字段"""
-        _create_person(client, client.headers, "走访字段测试", "320102199001011013")
+        _create_person(client, client.headers, "走访字段测试", "320102199001010109")
         r = client.get("/api/reminders")
         data = r.json()["data"]
         # 如果有超期未走访的人员

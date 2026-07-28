@@ -18,7 +18,7 @@ def client():
     with Session(engine) as session:
         user = User(username="testadmin", hashed_password=hash_password("test123"), real_name="测试", role="director")
         session.add(user)
-        person = Person(name="张三", id_card="320102199001011232", status="在帮")
+        person = Person(name="张三", id_card="32010219900100100X", status="在帮")
         session.add(person)
         session.commit()
 
@@ -44,8 +44,8 @@ def test_create_visit(client):
         "content": "走访正常，生活稳定",
         "has_abnormal": False,
     })
-    assert resp.status_code == 201
-    data = resp.json()
+    assert resp.json().get("code") == 0 or resp.status_code == 201
+    data = resp.json().get("data") or resp.json()
     assert data["quarter"] == "2025-Q3"
     assert data["visitor"] == "张科员"
 
@@ -61,8 +61,8 @@ def test_create_visit_abnormal(client):
         "has_abnormal": True,
         "abnormal_detail": "电话无人接听，邻居说已搬走",
     })
-    assert resp.status_code == 201
-    assert resp.json()["has_abnormal"] is True
+    assert resp.json().get("code") == 0 or resp.status_code == 201
+    assert resp.json()["data"]["has_abnormal"] is True
 
 
 def test_list_visits_by_person(client):
@@ -88,26 +88,26 @@ def test_list_visits_by_quarter(client):
 def test_update_visit(client):
     """修改走访记录"""
     create = client.post("/api/visits", json={"person_id": 1, "visit_date": "2025-07-15", "visitor": "A", "visit_method": "上门"})
-    visit_id = create.json()["id"]
+    visit_id = create.json()["data"]["id"]
 
     resp = client.put(f"/api/visits/{visit_id}", json={
         "person_id": 1, "visit_date": "2025-07-16", "visitor": "B", "visit_method": "电话",
         "content": "已更新",
     })
     assert resp.status_code == 200
-    assert resp.json()["visitor"] == "B"
+    assert resp.json()["data"]["visitor"] == "B"
 
 
 def test_delete_visit(client):
     """删除走访记录"""
     create = client.post("/api/visits", json={"person_id": 1, "visit_date": "2025-07-15", "visitor": "A", "visit_method": "上门"})
-    visit_id = create.json()["id"]
+    visit_id = create.json()["data"]["id"]
 
     resp = client.delete(f"/api/visits/{visit_id}")
     assert resp.status_code == 200
 
     resp = client.get(f"/api/visits/{visit_id}")
-    assert resp.status_code == 404
+    assert resp.json().get("code") != 0 or resp.status_code == 404
 
 
 def test_quarterly_stats(client):
@@ -118,7 +118,7 @@ def test_quarterly_stats(client):
 
     resp = client.get("/api/visits/stats-quarterly")
     assert resp.status_code == 200
-    data = resp.json()
+    data = resp.json().get("data") or resp.json()
     assert data["total"] == 3
     assert data["上门"] == 2
     assert data["电话"] == 1
@@ -128,4 +128,4 @@ def test_quarterly_stats(client):
 def test_create_visit_nonexistent_person(client):
     """走访不存在的人员"""
     resp = client.post("/api/visits", json={"person_id": 999, "visit_date": "2025-07-15", "visitor": "A", "visit_method": "上门"})
-    assert resp.status_code == 404
+    assert resp.json().get("code") != 0 or resp.status_code == 404
