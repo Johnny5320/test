@@ -57,8 +57,8 @@ jobs:
 
           c = httpx.Client(base_url="http://127.0.0.1:8000", timeout=15)
 
-          # 登录
-          r = c.post("/api/auth/login", json={"username":"admin","password":"admin123"})
+          # 登录（使用real_name登录）
+          r = c.post("/api/auth/login", json={"real_name":"系统管理员","password":"admin123"})
           TOKEN = r.json()["data"]["access_token"]
           H = {"Authorization": f"Bearer {TOKEN}"}
 
