@@ -32,9 +32,11 @@ jobs:
         shell: python
         env:
           SECRET_KEY: ci-test-secret-key-for-github-actions-only
-          PYTHONUTF8: 1
+          PYTHONIOENCODING: utf-8
         run: |
-          import subprocess, time, httpx, sys, json
+          import subprocess, time, httpx, sys, json, io
+          sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+          sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
           from datetime import date, timedelta
 
           proc = subprocess.Popen(
@@ -58,34 +60,30 @@ jobs:
 
           c = httpx.Client(base_url="http://127.0.0.1:8000", timeout=15)
 
-          # 登录（使用real_name登录）
           r = c.post("/api/auth/login", json={"real_name":"系统管理员","password":"admin123"})
           TOKEN = r.json()["data"]["access_token"]
           H = {"Authorization": f"Bearer {TOKEN}"}
 
           today = date.today()
 
-          # 辅助函数
           def get(path):
             r = c.get(path, headers=H); return r.json().get("data") or r.json()
           def post(path, body={}):
             return c.post(path, json=body, headers=H).json()
 
-          # 生成有效身份证
           def id_card(seq):
             y=1970+(seq%40); m=1+(seq%12); d=1+(seq%28)
             d17=f"320102{y}{m:02d}{d:02d}{seq:03d}"[:17]
             return d17+calc_check(d17)
 
-          # 创建测试数据
           test_data = [
-            {"name":"A_5天到期","status":"在帮","risk_level":"高","edu_end_date":(today+timedelta(days=5)).isoformat(),"is_minor":False},
-            {"name":"B_15天到期","status":"在帮","risk_level":"中","edu_end_date":(today+timedelta(days=15)).isoformat(),"is_minor":True},
-            {"name":"C_25天到期","status":"在帮","risk_level":"低","edu_end_date":(today+timedelta(days=25)).isoformat(),"is_xj":True},
-            {"name":"D_已超期","status":"在帮","risk_level":"高","edu_end_date":(today-timedelta(days=10)).isoformat(),"is_mental":True},
-            {"name":"E_正常90天","status":"在帮","risk_level":"低","edu_end_date":(today+timedelta(days=90)).isoformat()},
-            {"name":"F_已解除","status":"已解除","risk_level":"低","edu_end_date":(today+timedelta(days=3)).isoformat()},
-            {"name":"G_未成年精神","status":"在帮","risk_level":"高","edu_end_date":(today+timedelta(days=10)).isoformat(),"is_minor":True,"is_mental":True},
+            {"name":"A_5days","status":"在帮","risk_level":"高","edu_end_date":(today+timedelta(days=5)).isoformat(),"is_minor":False},
+            {"name":"B_15days","status":"在帮","risk_level":"中","edu_end_date":(today+timedelta(days=15)).isoformat(),"is_minor":True},
+            {"name":"C_25days","status":"在帮","risk_level":"低","edu_end_date":(today+timedelta(days=25)).isoformat(),"is_xj":True},
+            {"name":"D_overdue","status":"在帮","risk_level":"高","edu_end_date":(today-timedelta(days=10)).isoformat(),"is_mental":True},
+            {"name":"E_normal90","status":"在帮","risk_level":"低","edu_end_date":(today+timedelta(days=90)).isoformat()},
+            {"name":"F_released","status":"已解除","risk_level":"低","edu_end_date":(today+timedelta(days=3)).isoformat()},
+            {"name":"G_minor_mental","status":"在帮","risk_level":"高","edu_end_date":(today+timedelta(days=10)).isoformat(),"is_minor":True,"is_mental":True},
           ]
           ids = []
           for i, d in enumerate(test_data):
@@ -99,134 +97,134 @@ jobs:
               items = (r2.json().get("data") or r2.json()).get("items",[])
               if items: ids.append(items[0]["id"])
 
-          # === 基础 ===
-          test("登录", lambda: "OK")
-          test("用户信息", lambda: f"name={get('/api/auth/me')['real_name']}")
-          test("人员列表", lambda: f"total={get('/api/persons?page_size=20')['total']}")
-          test("搜索", lambda: f"命中{get('/api/persons?search=A_5天')['total']}条")
-          test("人员详情", lambda: f"id={get('/api/persons/'+str(ids[0]))['id']}")
-          test("修改人员", lambda: f"code={c.patch('/api/persons/'+str(ids[0]), json={'risk_level':'中'}, headers=H).json().get('code',0)}")
-          test("修改历史", lambda: f"{len(get('/api/persons/'+str(ids[0])+'/edit-logs'))}条")
-          test("统计汇总", lambda: f"total={get('/api/persons/stats-summary')['total']}")
-          test("季度报表", lambda: f"year={get('/api/persons/reports-quarterly').get('year','?')}")
-          test("Excel导出", lambda: f"{len(c.get('/api/persons/export', headers=H).content)}bytes")
+          # === Basic ===
+          test("Login", lambda: "OK")
+          test("UserInfo", lambda: f"name={get('/api/auth/me')['real_name']}")
+          test("PersonList", lambda: f"total={get('/api/persons?page_size=20')['total']}")
+          test("Search", lambda: f"found={get('/api/persons?search=A_5days')['total']}")
+          test("PersonDetail", lambda: f"id={get('/api/persons/'+str(ids[0]))['id']}")
+          test("UpdatePerson", lambda: f"code={c.patch('/api/persons/'+str(ids[0]), json={'risk_level':'中'}, headers=H).json().get('code',0)}")
+          test("EditHistory", lambda: f"{len(get('/api/persons/'+str(ids[0])+'/edit-logs'))} entries")
+          test("StatsSummary", lambda: f"total={get('/api/persons/stats-summary')['total']}")
+          test("QuarterlyReport", lambda: f"year={get('/api/persons/reports-quarterly').get('year','?')}")
+          test("ExcelExport", lambda: f"{len(c.get('/api/persons/export', headers=H).content)}bytes")
 
-          # === 预警列表 ===
+          # === Expiring list ===
           def t_expiring_list():
             d = c.get("/api/reminders", headers=H).json()
             data = d.get("data") or d
             assert "expiring_list" in data
             assert len(data["expiring_list"]) > 0
-            return f"{len(data['expiring_list'])}人"
-          test("预警列表", t_expiring_list)
+            return f"{len(data['expiring_list'])} persons"
+          test("ExpiringList", t_expiring_list)
 
           def t_expiring_contains():
             d = (c.get("/api/reminders", headers=H).json().get("data") or {})
             names = [p["name"] for p in d.get("expiring_list",[])]
-            assert "A_5天到期" in names
-            assert "F_已解除" not in names
+            assert "A_5days" in names
+            assert "F_released" not in names
             return "OK"
-          test("预警-人员正确", t_expiring_contains)
+          test("ExpiringFilter", t_expiring_contains)
 
           def t_overdue_list():
             d = (c.get("/api/reminders", headers=H).json().get("data") or {})
             assert "visit_overdue_list" in d
-            return f"{len(d['visit_overdue_list'])}人"
-          test("超期未走访", t_overdue_list)
+            return f"{len(d['visit_overdue_list'])} persons"
+          test("OverdueVisits", t_overdue_list)
 
-          # === 到期筛选 ===
+          # === Expiring filter ===
           def t_7d():
             d = get("/api/persons?expiring_within_days=7")
             names = [p["name"] for p in d.get("items",[])]
-            assert "A_5天到期" in names and "B_15天到期" not in names
-            return f"{d.get('total',0)}人"
-          test("7天筛选", t_7d)
+            assert "A_5days" in names and "B_15days" not in names
+            return f"{d.get('total',0)} persons"
+          test("Filter7d", t_7d)
 
           def t_30d():
             d = get("/api/persons?expiring_within_days=30")
             names = [p["name"] for p in d.get("items",[])]
-            assert "A_5天到期" in names and "B_15天到期" in names
-            return f"{d.get('total',0)}人"
-          test("30天筛选", t_30d)
+            assert "A_5days" in names and "B_15days" in names
+            return f"{d.get('total',0)} persons"
+          test("Filter30d", t_30d)
 
           def t_30d_active():
             d = get("/api/persons?expiring_within_days=30")
             for p in d.get("items",[]): assert p["status"]=="在帮"
             return "OK"
-          test("到期-只含在帮", t_30d_active)
+          test("Filter30dActiveOnly", t_30d_active)
 
-          # === 组合筛选 ===
+          # === Combo filter ===
           def t_combo1():
             d = get("/api/persons?is_minor=true&is_mental=true")
             names = [p["name"] for p in d.get("items",[])]
-            assert "G_未成年精神" in names
-            return f"{d.get('total',0)}人"
-          test("未成年+精神", t_combo1)
+            assert "G_minor_mental" in names
+            return f"{d.get('total',0)} persons"
+          test("FilterMinor+Mental", t_combo1)
 
           def t_combo2():
             d = get("/api/persons?expiring_within_days=30&is_minor=true")
             names = [p["name"] for p in d.get("items",[])]
-            assert "B_15天到期" in names
-            return f"{d.get('total',0)}人"
-          test("30天+未成年", t_combo2)
+            assert "B_15days" in names
+            return f"{d.get('total',0)} persons"
+          test("Filter30d+Minor", t_combo2)
 
           def t_xj():
             d = get("/api/persons?is_xj=true")
             names = [p["name"] for p in d.get("items",[])]
-            assert "C_25天到期" in names
-            return f"{d.get('total',0)}人"
-          test("xj筛选", t_xj)
+            assert "C_25days" in names
+            return f"{d.get('total',0)} persons"
+          test("FilterXJ", t_xj)
 
-          # === 新增API ===
+          # === New APIs ===
           def t_trend():
             d = get("/api/persons/stats-trend?months=3")
             assert isinstance(d, list) and len(d) > 0
-            return f"{len(d)}个月"
-          test("月度趋势", t_trend)
+            return f"{len(d)} months"
+          test("StatsTrend", t_trend)
 
           def t_risk():
             d = get(f"/api/persons/{ids[0]}/risk-score")
             assert "score" in d and "level" in d
             return f"score={d['score']}, level={d['level']}"
-          test("风险评分", t_risk)
+          test("RiskScore", t_risk)
 
           def t_batch_del():
             r = post("/api/persons/batch-delete", {"ids":[ids[-1]]})
             assert r.get("code") == 0
             return r.get("message","ok")
-          test("批量删除", t_batch_del)
+          test("BatchDelete", t_batch_del)
 
           def t_batch_status():
             r = post("/api/persons/batch-update-status", {"ids":[ids[0]],"status":"脱管"})
             assert r.get("code") == 0
             return r.get("message","ok")
-          test("批量改状态", t_batch_status)
+          test("BatchUpdateStatus", t_batch_status)
 
           def t_batch_risk():
             r = post("/api/persons/batch-update-risk", {"ids":[ids[1]],"risk_level":"高"})
             assert r.get("code") == 0
             return r.get("message","ok")
-          test("批量改风险", t_batch_risk)
+          test("BatchUpdateRisk", t_batch_risk)
 
-          # === 走访 ===
+          # === Visits ===
           def t_visit():
-            r = post("/api/visits", {"person_id":ids[2],"visit_date":str(today),"visitor":"测试","visit_method":"上门"})
+            r = post("/api/visits", {"person_id":ids[2],"visit_date":str(today),"visitor":"CI Test","visit_method":"上门"})
             return f"code={r.get('code','?')}"
-          test("新增走访", t_visit)
+          test("CreateVisit", t_visit)
 
-          test("走访列表", lambda: f"total={get('/api/visits?page_size=100')['total']}")
-          test("季度统计", lambda: f"total={get('/api/visits/stats-quarterly').get('total',0)}")
-          test("改密码", lambda: f"code={post('/api/auth/change-password', {'old_password':'admin123','new_password':'admin123'}).get('code',0)}")
+          test("VisitList", lambda: f"total={get('/api/visits?page_size=100')['total']}")
+          test("VisitStats", lambda: f"total={get('/api/visits/stats-quarterly').get('total',0)}")
+          test("ChangePassword", lambda: f"code={post('/api/auth/change-password', {'old_password':'admin123','new_password':'admin123'}).get('code',0)}")
 
           proc.terminate()
 
           print()
           print("=" * 60)
-          print(f"  集成测试: {P} 通过 / {F} 失败 / {P+F} 总计")
+          print(f"  Integration: {P} passed / {F} failed / {P+F} total")
           print("=" * 60)
           for r in results: print(f"  {r}")
           if F > 0:
-            print(f"\n  FAILED {F} 项失败")
+            print(f"\n  FAILED {F} tests")
             sys.exit(1)
           else:
             print(f"\n  ALL PASSED")
