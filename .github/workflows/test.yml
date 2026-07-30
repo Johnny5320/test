@@ -32,6 +32,7 @@ jobs:
         shell: python
         env:
           SECRET_KEY: ci-test-secret-key-for-github-actions-only
+          PYTHONUTF8: 1
         run: |
           import subprocess, time, httpx, sys, json
           from datetime import date, timedelta
