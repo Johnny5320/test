@@ -68,7 +68,7 @@ test_data = [
     {"name": "C_25days", "status": "在帮", "risk_level": "低", "edu_end_date": (today + timedelta(days=25)).isoformat(), "is_xj": True},
     {"name": "D_overdue", "status": "在帮", "risk_level": "高", "edu_end_date": (today - timedelta(days=10)).isoformat(), "is_mental": True},
     {"name": "E_normal90", "status": "在帮", "risk_level": "低", "edu_end_date": (today + timedelta(days=90)).isoformat()},
-    {"name": "F_released", "status": "已释除", "risk_level": "低", "edu_end_date": (today + timedelta(days=3)).isoformat()},
+    {"name": "F_released", "status": "已解除", "risk_level": "低", "edu_end_date": (today + timedelta(days=3)).isoformat()},
     {"name": "G_minor_mental", "status": "在帮", "risk_level": "高", "edu_end_date": (today + timedelta(days=10)).isoformat(), "is_minor": True, "is_mental": True},
 ]
 ids = []
