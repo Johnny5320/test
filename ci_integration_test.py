@@ -6,8 +6,12 @@ from datetime import date, timedelta
 os.environ["PYTHONUTF8"] = "1"
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
+print(f"Python: {sys.version}")
+print(f"CWD: {os.getcwd()}")
+print(f"Files: {os.listdir('.')}")
+print(f"Backend exists: {os.path.isdir('judicial-system/backend')}")
+
 def wait_for_server(host, port, timeout=30):
-    """Wait until server is accepting connections."""
     start = time.time()
     while time.time() - start < timeout:
         try:
@@ -18,19 +22,24 @@ def wait_for_server(host, port, timeout=30):
     return False
 
 print("Starting server...")
+server_out = open("server_stdout.log", "w", encoding="utf-8")
+server_err = open("server_stderr.log", "w", encoding="utf-8")
 proc = subprocess.Popen(
     [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
     cwd="judicial-system/backend",
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
+    stdout=server_out,
+    stderr=server_err,
 )
 
 if not wait_for_server("127.0.0.1", 8000, timeout=30):
     print("ERROR: Server failed to start within 30 seconds")
-    stdout, stderr = proc.communicate(timeout=5)
-    print(f"STDOUT: {stdout.decode('utf-8', errors='replace')[:2000]}")
-    print(f"STDERR: {stderr.decode('utf-8', errors='replace')[:2000]}")
     proc.kill()
+    server_out.close()
+    server_err.close()
+    with open("server_stderr.log", "r", encoding="utf-8", errors="replace") as f:
+        print(f"SERVER STDERR:\n{f.read()[:3000]}")
+    with open("server_stdout.log", "r", encoding="utf-8", errors="replace") as f:
+        print(f"SERVER STDOUT:\n{f.read()[:3000]}")
     sys.exit(1)
 
 print("Server started OK")

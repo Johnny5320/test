@@ -38,3 +38,16 @@ jobs:
           $env:PYTHONUTF8 = "1"
           $env:PYTHONIOENCODING = "utf-8"
           python -X utf8 ci_integration_test.py
+        continue-on-error: true
+        id: integration
+
+      - name: Print server logs on failure
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path server_stderr.log) { Write-Host "=== SERVER STDERR ==="; Get-Content server_stderr.log -Tail 100 }
+          if (Test-Path server_stdout.log) { Write-Host "=== SERVER STDOUT ==="; Get-Content server_stdout.log -Tail 50 }
+
+      - name: Fail if integration test failed
+        if: steps.integration.outcome == 'failure'
+        run: exit 1
