@@ -11,6 +11,7 @@ jobs:
     runs-on: windows-latest
     env:
       SECRET_KEY: ci-test-secret-key-for-github-actions-only
+      PYTHONUTF8: 1
     steps:
       - uses: actions/checkout@v4
 
