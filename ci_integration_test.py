@@ -1,22 +1,41 @@
 # -*- coding: utf-8 -*-
-"""CI integration test - ASCII output only to avoid encoding issues on Windows."""
-import subprocess, time, sys, os, json
+"""CI integration test."""
+import subprocess, time, sys, os, socket
 from datetime import date, timedelta
 
 os.environ["PYTHONUTF8"] = "1"
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
+def wait_for_server(host, port, timeout=30):
+    """Wait until server is accepting connections."""
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            with socket.create_connection((host, port), timeout=2):
+                return True
+        except (ConnectionRefusedError, OSError):
+            time.sleep(0.5)
+    return False
+
+print("Starting server...")
 proc = subprocess.Popen(
     [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
-    cwd="judicial-system/backend"
+    cwd="judicial-system/backend",
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
 )
-time.sleep(5)
 
-try:
-    import httpx
-except ImportError:
-    print("ERROR: httpx not installed")
+if not wait_for_server("127.0.0.1", 8000, timeout=30):
+    print("ERROR: Server failed to start within 30 seconds")
+    stdout, stderr = proc.communicate(timeout=5)
+    print(f"STDOUT: {stdout.decode('utf-8', errors='replace')[:2000]}")
+    print(f"STDERR: {stderr.decode('utf-8', errors='replace')[:2000]}")
+    proc.kill()
     sys.exit(1)
+
+print("Server started OK")
+
+import httpx
 
 P, F, results = 0, 0, []
 
@@ -39,7 +58,7 @@ c = httpx.Client(base_url="http://127.0.0.1:8000", timeout=15)
 # Login
 r = c.post("/api/auth/login", json={"real_name": "系统管理员", "password": "admin123"})
 if r.status_code != 200 or "data" not in r.json():
-    print(f"ERROR: login failed: {r.status_code} {r.text[:200]}")
+    print(f"ERROR: login failed: {r.status_code} {r.text[:500]}")
     proc.terminate()
     sys.exit(1)
 TOKEN = r.json()["data"]["access_token"]
@@ -51,7 +70,9 @@ def get(path):
     r = c.get(path, headers=H)
     return r.json().get("data") or r.json()
 
-def post(path, body={}):
+def post(path, body=None):
+    if body is None:
+        body = {}
     return c.post(path, json=body, headers=H).json()
 
 def id_card(seq):

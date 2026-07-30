@@ -29,8 +29,12 @@ jobs:
         run: python -m pytest tests/test_auth.py tests/test_persons.py tests/test_visits.py tests/test_reminders.py tests/test_validation.py tests/test_expiring_filter.py -v --tb=short
 
       - name: 启动服务并运行 API 集成测试
-        shell: cmd
+        shell: pwsh
         env:
           SECRET_KEY: ci-test-secret-key-for-github-actions-only
-          PYTHONUTF8: 1
-        run: python -X utf8 ci_integration_test.py
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
+        run: |
+          $env:PYTHONUTF8 = "1"
+          $env:PYTHONIOENCODING = "utf-8"
+          python -X utf8 ci_integration_test.py
