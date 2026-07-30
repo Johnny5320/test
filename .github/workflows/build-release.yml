@@ -1,0 +1,92 @@
+name: 构建发布包
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装依赖
+        run: |
+          cd judicial-system/backend
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: PyInstaller 打包
+        shell: pwsh
+        run: |
+          cd judicial-system/backend
+          pyinstaller `
+            --noconfirm --clean `
+            --name "安置帮教系统" `
+            --onedir `
+            --noconsole `
+            --hide-console hide-early `
+            --workpath build `
+            --distpath "../dist/app" `
+            --specpath "." `
+            --add-data "../frontend;frontend" `
+            --hidden-import app --hidden-import app.core --hidden-import app.api `
+            --hidden-import app.models --hidden-import app.schemas `
+            --hidden-import sqlmodel --hidden-import pydantic --hidden-import pydantic_settings `
+            --hidden-import jose --hidden-import bcrypt --hidden-import multipart `
+            --hidden-import uvicorn --hidden-import uvicorn.logging `
+            --hidden-import uvicorn.loops --hidden-import uvicorn.loops.auto `
+            --hidden-import uvicorn.protocols --hidden-import uvicorn.protocols.http `
+            --hidden-import uvicorn.protocols.http.auto `
+            --hidden-import uvicorn.protocols.websockets --hidden-import uvicorn.protocols.websockets.auto `
+            --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on `
+            --hidden-import rapidocr_onnxruntime --hidden-import onnxruntime `
+            --hidden-import openpyxl --hidden-import aiofiles `
+            --exclude-module tkinter --exclude-module matplotlib `
+            --exclude-module numpy.random._examples `
+            run_server.py
+
+      - name: 组织目录结构
+        shell: pwsh
+        run: |
+          # exe + _internal + frontend 放同一层
+          $src = "judicial-system/dist/app/安置帮教系统"
+          $out = "release"
+          New-Item -ItemType Directory -Path $out -Force
+          Copy-Item "$src/安置帮教系统.exe" "$out/"
+          Copy-Item "$src/_internal" "$out/_internal" -Recurse
+          Copy-Item "judicial-system/frontend" "$out/frontend" -Recurse
+          Compress-Archive -Path "$out/*" -DestinationPath "安置帮教智能台账系统.zip" -Force
+          echo "ZIP size: $((Get-Item 安置帮教智能台账系统.zip).Length / 1MB) MB"
+
+      - name: 冒烟测试
+        shell: pwsh
+        run: |
+          $env:SECRET_KEY = "test-smoke-key"
+          Expand-Archive -Path 安置帮教智能台账系统.zip -DestinationPath smoke-test -Force
+          $proc = Start-Process "smoke-test/安置帮教系统.exe" -PassThru
+          Start-Sleep -Seconds 8
+          try {
+            $r = Invoke-WebRequest -Uri "http://127.0.0.1:8000" -TimeoutSec 10 -ErrorAction Stop
+            Write-Host "SMOKE TEST PASSED: HTTP $($r.StatusCode)"
+          } catch {
+            Write-Host "SMOKE TEST FAILED: $_"
+            exit 1
+          } finally {
+            $proc | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: 上传到 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: 安置帮教智能台账系统.zip
+          generate_release_notes: true

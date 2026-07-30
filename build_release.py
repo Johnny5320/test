@@ -142,7 +142,7 @@ def create_launcher():
 
 
 def build_installer():
-    """使用 NSIS 编译安装程序"""
+    """使用 NSIS 编译安装程序（先复制到临时ASCII路径避免NSIS中文路径问题）"""
     print("[5/6] 编译安装程序...")
 
     # 查找 makensis
@@ -161,10 +161,34 @@ def build_installer():
         print("  下载地址: https://nsis.sourceforge.io/Download")
         sys.exit(1)
 
-    # 编译 NSIS 脚本
-    nsis_script = PROJECT_ROOT / "installer.nsi"
-    cmd = f'"{makensis}" "{nsis_script}"'
-    run(cmd, cwd=str(PROJECT_ROOT))
+    # NSIS 不支持中文源路径，复制到临时ASCII目录
+    import tempfile, shutil
+    tmp_dir = Path(tempfile.mkdtemp(prefix="nsis_build_"))
+    tmp_app = tmp_dir / "app"
+    shutil.copytree(DIST_APP_DIR, tmp_app)
+
+    # 重命名中文子目录为ASCII
+    for item in tmp_app.iterdir():
+        if item.is_dir() and not item.name.isascii():
+            new_name = "app_bin" if "安置" in item.name or "系统" in item.name else item.name
+            item.rename(tmp_app / new_name)
+
+    # 生成临时NSIS脚本（纯ASCII路径）
+    nsis_template = (PROJECT_ROOT / "installer.nsi").read_text(encoding="utf-8")
+    # 替换源路径占位符为临时路径
+    nsis_content = nsis_template.replace(
+        '__NSIS_SRC__',
+        str(tmp_app)
+    )
+    tmp_nsi = tmp_dir / "installer.nsi"
+    tmp_nsi.write_text(nsis_content, encoding="utf-8")
+
+    # 编译
+    cmd = f'"{makensis}" "{tmp_nsi}"'
+    run(cmd, cwd=str(tmp_dir))
+
+    # 清理临时目录
+    shutil.rmtree(tmp_dir, ignore_errors=True)
     print("  安装程序编译完成")
 
 
