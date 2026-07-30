@@ -115,14 +115,14 @@ jobs:
           def t_expiring_list():
             d = c.get("/api/reminders", headers=H).json()
             data = d.get("data") or d
-            assert "expiring_list" in data
-            assert len(data["expiring_list"]) > 0
-            return f"{len(data['expiring_list'])} persons"
+            assert "dismiss_list" in data
+            assert len(data["dismiss_list"]) > 0
+            return f"{len(data['dismiss_list'])} persons"
           test("ExpiringList", t_expiring_list)
 
           def t_expiring_contains():
             d = (c.get("/api/reminders", headers=H).json().get("data") or {})
-            names = [p["name"] for p in d.get("expiring_list",[])]
+            names = [p["name"] for p in d.get("dismiss_list",[])]
             assert "A_5days" in names
             assert "F_released" not in names
             return "OK"
