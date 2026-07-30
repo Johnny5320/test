@@ -1,0 +1,31 @@
+{
+  "base": "http://127.0.0.1:8000",
+  "total": 3,
+  "ok": 1,
+  "results": [
+    {
+      "name": "健康检查",
+      "method": "GET",
+      "path": "/health",
+      "status": 200,
+      "ok": true,
+      "error": null
+    },
+    {
+      "name": "登录(正确)",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 400,
+      "ok": false,
+      "error": null
+    },
+    {
+      "name": "登录(错误密码,期望401)",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 400,
+      "ok": false,
+      "error": null
+    }
+  ]
+}

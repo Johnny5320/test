@@ -1,0 +1,41 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+*.db
+*.db-shm
+*.db-wal
+*.bak
+uploads/
+.venv/
+node_modules/
+*.log
+
+# Build artifacts
+/dist/
+/build/
+*.spec
+/exe.test/
+/_backup/
+*.exe
+*.nsi
+安置帮教智能台账系统_安装程序.exe
+
+# Python
+*.egg-info/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Embedded git
+judicial-system/.git

@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# SQLite temp/transient (keep data.db tracked as baseline backup)
+*.db-wal
+*.db-shm
+
+# Manual DB safety backups (created before destructive reseeds)
+*.bak
+*.db.bak.*
+
+# 敏感文件
+.env
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db

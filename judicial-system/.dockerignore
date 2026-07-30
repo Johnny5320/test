@@ -1,0 +1,34 @@
+# 后端
+backend/.venv
+backend/__pycache__
+backend/*.pyc
+backend/.pytest_cache
+backend/logs
+backend/uploads
+backend/data.db*
+backend/*.log
+backend/.env
+backend/_backup
+backend/tools
+backend/tests
+backend/debug_*.py
+backend/find_*.py
+backend/fix_*.py
+backend/gen_*.py
+backend/inject_*.py
+backend/seed_*.py
+backend/run_*.py
+backend/persons_check.json
+backend/pyproject.toml
+backend/README.md
+
+# 前端（已 COPY 到镜像，忽略开发文件）
+frontend/_backup
+
+# 根目录
+.git
+.gitignore
+.dockerignore
+docker-compose.yml
+_backup
+*.md
