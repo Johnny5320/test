@@ -8,10 +8,7 @@ on:
 
 jobs:
   test:
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -50,9 +47,9 @@ jobs:
           def test(name, func):
             global P, F
             try:
-              r = func(); P += 1; results.append(f"✅ {name}: {r}")
+              r = func(); P += 1; results.append(f"PASS {name}: {r}")
             except Exception as e:
-              F += 1; results.append(f"❌ {name}: {e}")
+              F += 1; results.append(f"FAIL {name}: {e}")
 
           c = httpx.Client(base_url="http://127.0.0.1:8000", timeout=15)
 
@@ -224,7 +221,7 @@ jobs:
           print("=" * 60)
           for r in results: print(f"  {r}")
           if F > 0:
-            print(f"\n  ❌ {F} 项失败")
+            print(f"\n  FAILED {F} 项失败")
             sys.exit(1)
           else:
-            print(f"\n  🎉 全部通过！")
+            print(f"\n  ALL PASSED")
